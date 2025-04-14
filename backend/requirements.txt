@@ -1,0 +1,8 @@
+openai-whisper
+kokoro
+numpy
+soundfile
+langchain-ollama
+langchain-core
+langchain-mongodb
+pynput
