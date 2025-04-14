@@ -6,3 +6,5 @@ langchain-ollama
 langchain-core
 langchain-mongodb
 pynput
+fastapi-cors
+fastapi

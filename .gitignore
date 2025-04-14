@@ -1,3 +1,5 @@
 test.ipynb
 data
 backend/utils/__pycache__
+backend/__pycache__
+frontend/node_modules

@@ -16,7 +16,7 @@ voice_names = {'bella':'af_bella',
                'lewis':'bm_lewis',
                }                
 
-def get_audio(text: str, voice: str = "heart") -> Generator[bytes]:
+def get_audio(text: str, voice: str = "heart") -> Generator[bytes, None, None]:
     """
     Converts text to audio using Kokoro's text-to-speech model.
 

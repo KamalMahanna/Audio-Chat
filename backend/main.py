@@ -5,17 +5,15 @@ This module contains the main entry point for the FastAPI application, which
 provides a RESTful API for interacting with the Generative AI model.
 """
 
-from utils.llm import chat
+from utils.llm import chat, generate_chat_name
 from utils.tts import get_audio
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
-from typing import List
 
-from utils.llm import generate_chat_name, ChatSummaryNameOutput
-from utils.DataValidators import ListChatSessionsOutput, ChatHistoryOutput
+from utils.DataValidators import ListChatSessionsOutput, ChatHistoryOutput, ChatSummaryNameOutput
 from utils.stt import transcribe_audio
-from utils.tts import get_audio
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -27,7 +25,16 @@ chat_histories_collection = chat_history_db["chat_histories"]
 chat_meta_collection = chat_history_db["chat_meta"]
 
 app = FastAPI()
-
+origins = [
+    "http://localhost:3000",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # for chat_name
 
@@ -42,7 +49,7 @@ def get_session_id_n_names():
     return ListChatSessionsOutput(chat_sessions=chat_sessions)
 
 
-@app.post("/get_chat_name/{session_id}/{model}", response_model=ChatNameSummaryOutput)
+@app.post("/get_chat_name/{session_id}/{model}", response_model=ChatSummaryNameOutput)
 def get_chat_name(session_id: str, model: str) :
     """
     Get the chat name for a specific session.
