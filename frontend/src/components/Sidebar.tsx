@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit, Mic, MessageSquare, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit, Mic, MessageSquare, Check, X, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react'; // Added Pause
 import { useStore } from '../store';
 import { v4 as uuidv4 } from 'uuid';
+import { useEffect, useRef } from 'react'; // Added useEffect, useRef
 
 interface SidebarProps {
   isOpen: boolean;
@@ -17,9 +18,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     modelName, // Import global modelName
     setSessions,
     setCurrentSession,
-    fetchChatHistory, // Import fetchChatHistory
+    fetchChatHistory,
     setMode,
-    setModelName // Import global setModelName
+    setModelName,
+    selectedVoice,    // Added selectedVoice
+    setSelectedVoice, // Added setSelectedVoice
   } = useStore();
 
   const [editingSession, setEditingSession] = useState<string | null>(null);
@@ -28,6 +31,83 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [isEditingModel, setIsEditingModel] = useState(false);
   // Initialize tempModelName with global modelName when editing starts
   const [tempModelName, setTempModelName] = useState('');
+
+  // --- Voice Selection State & Logic ---
+  const availableVoices = [
+    'adam', 'bella', 'emma', 'george', 'heart',
+    'isabella', 'lewis', 'michael', 'nicole', 'sarah', 'sky'
+  ];
+  const [currentVoiceIndex, setCurrentVoiceIndex] = useState(
+    availableVoices.indexOf(selectedVoice) >= 0 ? availableVoices.indexOf(selectedVoice) : availableVoices.indexOf('bella')
+  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isVoicePlaying, setIsVoicePlaying] = useState(false); // State for play/pause toggle
+
+  // REMOVED useEffect that was causing the preview index to reset inappropriately
+  
+  // Cleanup function to stop audio when sidebar closes or component unmounts
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
+  
+  const playVoice = (voiceName: string) => {
+    const voiceAudioUrl = `/voices/${voiceName}.wav`;
+    
+    // If clicking the button for the currently loaded and playing voice, pause it.
+    if (audioRef.current && audioRef.current.src.endsWith(voiceAudioUrl) && isVoicePlaying) {
+      audioRef.current.pause();
+      // No need to set isVoicePlaying(false) here, the 'onpause' listener will handle it
+    } else {
+      // Stop any currently playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        // Remove previous listeners to prevent duplicates if any
+        audioRef.current.onplay = null;
+        audioRef.current.onpause = null;
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+      }
+      
+      // Create and play the new audio
+      const newAudio = new Audio(voiceAudioUrl);
+      newAudio.onplay = () => setIsVoicePlaying(true);
+      newAudio.onpause = () => setIsVoicePlaying(false);
+      newAudio.onended = () => setIsVoicePlaying(false); // Also set to false when audio naturally finishes
+      newAudio.onerror = () => {
+          console.error(`Error playing audio: ${voiceAudioUrl}`);
+          setIsVoicePlaying(false); // Reset state on error
+      };
+      
+      audioRef.current = newAudio;
+      audioRef.current.play().catch(error => {
+        console.error("Audio play failed:", error);
+        setIsVoicePlaying(false); // Ensure state is false if play promise rejects
+      });
+    }
+  };
+
+  const handleSelectVoice = () => { // Removed voiceName argument
+    setSelectedVoice(availableVoices[currentVoiceIndex]); // Use current index
+    // Optionally play sound on selection
+    // playVoice(availableVoices[currentVoiceIndex]);
+  };
+
+  const handleNextVoice = () => {
+    const nextIndex = (currentVoiceIndex + 1) % availableVoices.length;
+    setCurrentVoiceIndex(nextIndex);
+    playVoice(availableVoices[nextIndex]); // Auto-play next voice
+  };
+
+  const handlePrevVoice = () => {
+    const prevIndex = (currentVoiceIndex - 1 + availableVoices.length) % availableVoices.length;
+    setCurrentVoiceIndex(prevIndex);
+    playVoice(availableVoices[prevIndex]); // Auto-play previous voice
+  };
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  // --- End Voice Selection State & Logic ---
 
   const createNewChat = () => {
     const newSession = {
@@ -194,13 +274,72 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <span className="font-medium">New Chat</span>
             </motion.button>
 
-            <div key="recent-chats-section" className="flex flex-col flex-grow mt-4 overflow-hidden"> {/* Added flex-col, flex-grow, overflow-hidden, adjusted mt */}
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 flex-shrink-0">Recent Chats</h2> {/* Removed sticky/bg, added flex-shrink-0 */}
-              {/* Scrollable container for list items */}
-              <div className="flex-grow overflow-y-auto overflow-x-hidden custom-scrollbar space-y-2 pr-1"> {/* Removed redundant bg-* classes */}
-                {sessionListItems}
+            {/* --- Conditional Section: Recent Chats or Voice Selection --- */}
+            {mode === 'chat' ? (
+              <div key="recent-chats-section" className="flex flex-col flex-grow mt-4 overflow-hidden">
+                <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 flex-shrink-0">Recent Chats</h2>
+                <div className="flex-grow overflow-y-auto overflow-x-hidden custom-scrollbar space-y-2 pr-1">
+                  {sessionListItems}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div key="voice-selection-section" className="flex flex-col flex-grow mt-4 overflow-hidden space-y-3">
+                <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 flex-shrink-0">Select Voice</h2>
+                
+                {/* Voice Card */}
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 flex flex-col items-center space-y-3 shadow">
+                   <span className="text-lg font-semibold text-text-light dark:text-text-dark">{capitalize(availableVoices[currentVoiceIndex])}</span>
+                   
+                   <div className="flex items-center justify-center space-x-4 w-full">
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={handlePrevVoice}
+                        className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-text-light dark:text-text-dark"
+                        aria-label="Previous voice"
+                      >
+                        <ChevronLeft size={20} />
+                      </motion.button>
+
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => playVoice(availableVoices[currentVoiceIndex])}
+                        className="p-3 rounded-full bg-primary-light dark:bg-primary-dark text-white shadow-md"
+                        aria-label={isVoicePlaying ? "Pause current voice sample" : "Play current voice sample"}
+                      >
+                        {isVoicePlaying
+                          ? <Pause size={20} className="fill-current" />
+                          : <Play size={20} className="fill-current" />}
+                      </motion.button>
+
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={handleNextVoice}
+                        className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-text-light dark:text-text-dark"
+                        aria-label="Next voice"
+                      >
+                        <ChevronRight size={20} />
+                      </motion.button>
+                   </div>
+
+                   <motion.button
+                     whileHover={{ scale: 1.03 }}
+                     whileTap={{ scale: 0.97 }}
+                     onClick={handleSelectVoice} // Pass the function directly
+                     disabled={selectedVoice === availableVoices[currentVoiceIndex]} // Disable if already selected
+                     className={`w-full mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                       selectedVoice === availableVoices[currentVoiceIndex]
+                         ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                         : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                     }`}
+                   >
+                     {selectedVoice === availableVoices[currentVoiceIndex] ? 'Selected' : `Select ${capitalize(availableVoices[currentVoiceIndex])}`}
+                   </motion.button>
+                </div>
+                {/* Placeholder for potential future list/grid view if needed */}
+              </div>
+            )}
+            {/* --- End Conditional Section --- */}
 
             {/* Model Selection Section */}
             {/* Model Selection Section - kept outside the scrollable area */}

@@ -183,7 +183,7 @@ def text_interaction(SessionId: str, model: str, question: str) -> str:
 
 @app.post("/audio/{SessionId}/{model}/{voice}")
 async def voice_interaction(
-    SessionId: str, model: str, voice: str, file: UploadFile = File(...)
+    SessionId: str, model: str, voice: str, audio: UploadFile = File(...) # Changed 'file' to 'audio'
 ):
     """
     Get the audio from the Generative AI model for a specific session and question.
@@ -191,20 +191,21 @@ async def voice_interaction(
     Args:
         SessionId (str): The ID of the chat session to get the response for.
         voice (str): The voice to use for the text-to-speech model.
-        file (UploadFile): The uploaded audio file.
+        audio (UploadFile): The uploaded audio file. # Changed 'file' to 'audio' in docstring
 
     Returns:
         StreamingResponse: The generated audio in wav format.
     """
-    if file.content_type.startswith("audio/"):
-        return JSONResponse({"error": "Invalid file type"}, status_code=400)
+    # Corrected content type check: Raise error if NOT audio
+    if not audio.content_type.startswith("audio/"):
+        return JSONResponse({"error": "Invalid file type. Expected audio/*"}, status_code=400)
 
-    # transcribe the audio
-    transcribed_text = transcribe_audio(file)
+    # transcribe the audio using the correct parameter name
+    transcribed_text = transcribe_audio(await audio.read())
 
     # get response from the Generative AI model
     response = chat(transcribed_text, SessionId, model)
-
+    print('response', response)
     # get audio from the response
     audio = get_audio(text=response, voice=voice)
 

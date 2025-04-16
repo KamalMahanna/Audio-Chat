@@ -1,5 +1,5 @@
 import whisper
-
+import tempfile
 
 def transcribe_audio(audio_file: str) -> str:
     """
@@ -12,8 +12,19 @@ def transcribe_audio(audio_file: str) -> str:
         str: The transcribed text.
     """
     model = whisper.load_model("base.en", in_memory=True)
-    result = model.transcribe(audio_file)
-    return result["text"]
+    
+    with tempfile.NamedTemporaryFile(suffix=".wav") as temp_audio:
+        temp_audio.write(audio_file)
+        audio_file_path = temp_audio.name
+    
+        try:
+            result = model.transcribe(audio_file_path)
+            the_text = result["text"]
+            
+            print(the_text)
+            return the_text
+        except Exception as e:
+            print(e)
 
 
 if __name__ == "__main__":

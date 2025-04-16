@@ -4,6 +4,7 @@ import io
 from typing import Generator
 
 voice_names = {
+    "default": "af_bella",
     "bella": "af_bella",
     "heart": "af_heart",
     "nicole": "af_nicole",
@@ -35,7 +36,7 @@ def get_audio(text: str, voice: str = "heart") -> Generator[bytes, None, None]:
     generator = pipeline(text, voice=voice)
 
     for _, _, audio in generator:
-
+        print("Sending a audio...")
         buf = io.BytesIO()
         sf.write(buf, audio, samplerate=24000, format="wav")
         yield buf.read()
