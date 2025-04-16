@@ -18,13 +18,16 @@ def check_model(model: str) -> str:
         try:
             ollama.pull(model)
         except Exception as e:
-            raise Exception(f"Failed to download model. Please ensure you have ollama installed and entered correct model name: {str(e)}")
+            raise Exception(
+                f"""Failed to download model. Please ensure you have ollama 
+                installed and entered correct model name: {str(e)}"""
+            )
 
 
 def chat(question: str, SessionId: str, model: str = "gemma3:1b") -> str:
     """
     This function takes a question and a session ID, and returns the response
-    from the Generative AI model.   
+    from the Generative AI model.
 
     It creates a prompt template, a chain with a Generative AI model,
     and a history with a MongoDB database. It then invokes the chain
@@ -34,7 +37,7 @@ def chat(question: str, SessionId: str, model: str = "gemma3:1b") -> str:
     check_model(model=model)
 
     # Create the Generative AI model
-    llm = OllamaLLM(model=model)
+    llm = OllamaLLM(model=model,keep_alive=10)
 
     # Create the prompt template with system, history, and human messages
     prompt = ChatPromptTemplate.from_messages(
@@ -95,44 +98,56 @@ def get_chat_history(
         collection_name="chat_histories",
         session_id=SessionId,
     )
-    return chat_message_history.messages
+
+    human_messages = [
+        each_message.content
+        for each_message in chat_message_history.messages
+        if isinstance(each_message, HumanMessage)
+    ]
+    return human_messages
 
 
 def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
     """
-    This function takes a session ID and returns a string that summarizes the chat history
-    associated with it.
+    This function takes a session ID and returns a string that summarizes 
+    the chat history associated with it.
 
-    It uses the ChatGoogleGenerativeAI class to generate a summary of the chat history,
-    and then returns the summary.
+    It uses the ChatGoogleGenerativeAI class to generate a summary of 
+    the chat history, and then returns the summary.
     """
 
     check_model(model=model)
 
-    llm = OllamaLLM(model=model)
-
-    # Create the prompt template with system, history, and human messages
     prompt = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
                 (
-                    "Summarize the following chat between human and ai "
+                    "Summarize the following chat which is asked by a user"
                     "within five words, which will be used for naming "
                     "the chat title. Ignore introductory chats like "
                     "hi, hello, who are you, etc."
                 ),
             ),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "Now summarize the chat history in 5 words or less."),
+            (
+                "human",
+                """ Below i the questions asked by the user.
+            ------------
+            {complete_message}
+            ------------
+            Now summarize the chat history in 5 words or less.
+            """,
+            ),
         ]
     )
+
+    llm = OllamaLLM(model=model,keep_alive=10)
 
     # Create the chain with the prompt and the LLM
     chain = prompt | llm
 
     # Invoke the chain with the chat history
-    response = chain.invoke({"history": get_chat_history(SessionId)})
+    response = chain.invoke({"complete_message": "\n".join(get_chat_history(SessionId))})
 
     return response
 

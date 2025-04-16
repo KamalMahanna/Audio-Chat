@@ -85,6 +85,37 @@ export const ChatMode: React.FC = () => {
 
       // After successful response, refetch the history to get updated messages
       await fetchChatHistory(targetSessionId);
+
+      // --- Fetch chat name after 4 pairs (8 messages) ---
+      const updatedMessages = useStore.getState().messages[targetSessionId] || [];
+      const currentSessionData = useStore.getState().sessions.find(s => s.SessionId === targetSessionId);
+
+      if (updatedMessages.length === 6 && currentSessionData?.chat_name === 'New Chat') {
+        console.log(`Fetching chat name for session: ${targetSessionId}`);
+        try {
+          const nameResponse = await fetch(`http://localhost:8000/get_chat_name/${targetSessionId}/${modelName}`, { // Added modelName
+            method: 'POST', // Assuming POST based on task description
+          });
+          if (!nameResponse.ok) {
+            throw new Error(`HTTP error! status: ${nameResponse.status}`);
+          }
+          const nameData = await nameResponse.json();
+          if (nameData.summarized_chat_name) {
+            console.log(`Updating chat name to: ${nameData.summarized_chat_name}`);
+            // Update the session name in the global state
+            const updatedSessions = useStore.getState().sessions.map(session =>
+              session.SessionId === targetSessionId
+                ? { ...session, chat_name: nameData.summarized_chat_name }
+                : session
+            );
+            setSessions(updatedSessions);
+          }
+        } catch (nameError) {
+          console.error('Failed to fetch or update chat name:', nameError);
+        }
+      }
+      // -------------------------------------------------
+
     } catch (error) {
       console.error('Failed to send message:', error);
       // Optionally, show an error message to the user

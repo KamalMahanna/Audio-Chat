@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import List, Literal, Dict
 from bson import ObjectId
 
+
 class ChatSummaryNameOutput(BaseModel):
     summarized_chat_name: str = Field(
         ..., description="Summarized chat name within 5 words."
@@ -21,14 +22,19 @@ class ListChatSessionsOutput(BaseModel):
     @field_validator("chat_sessions")
     def valid_chat_sessions(cls, v):
         for chat_session in v:
-            if "SessionId" not in chat_session or "chat_name" not in chat_session:
-                raise ValueError("Each chat session must have a SessionId and chat_name")
+            if (
+                "SessionId" not in chat_session
+                or "chat_name" not in chat_session
+            ):
+                raise ValueError(
+                    "Each chat session must have a SessionId and chat_name"
+                )
         return v
-    
+
 
 class EachChatHistory(BaseModel):
 
-    id_: str =Field(...,alias="_id")
+    id_: str = Field(..., alias="_id")
     type: Literal["ai", "human"]
     content: str
 

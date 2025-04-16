@@ -3,18 +3,20 @@ import soundfile as sf
 import io
 from typing import Generator
 
-voice_names = {'bella':'af_bella',
-               'heart':'af_heart',
-               'nicole':'af_nicole',
-               'sarah':'af_sarah',
-               'sky':'af_sky',
-               'adam':'am_adam',
-               'michael':'am_michael',
-               'emma':'bf_emma',
-               'isabella':'bf_isabella',
-               'george':'bm_george',
-               'lewis':'bm_lewis',
-               }                
+voice_names = {
+    "bella": "af_bella",
+    "heart": "af_heart",
+    "nicole": "af_nicole",
+    "sarah": "af_sarah",
+    "sky": "af_sky",
+    "adam": "am_adam",
+    "michael": "am_michael",
+    "emma": "bf_emma",
+    "isabella": "bf_isabella",
+    "george": "bm_george",
+    "lewis": "bm_lewis",
+}
+
 
 def get_audio(text: str, voice: str = "heart") -> Generator[bytes, None, None]:
     """
@@ -28,7 +30,7 @@ def get_audio(text: str, voice: str = "heart") -> Generator[bytes, None, None]:
         generator: The generated audio in wav format as a generator.
     """
     voice = voice_names.get(voice, voice)
-    
+
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     generator = pipeline(text, voice=voice)
 
