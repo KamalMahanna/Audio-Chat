@@ -15,13 +15,16 @@ def check_model(model: str) -> str:
     """
     model_names = [i["model"] for i in ollama.list().model_dump()["models"]]
     if model not in model_names:
-        ollama.download(model)
+        try:
+            ollama.pull(model)
+        except Exception as e:
+            raise Exception(f"Failed to download model. Please ensure you have ollama installed and entered correct model name: {str(e)}")
 
 
-def chat(question: str, session_id: str, model: str = "gemma3:1b") -> str:
+def chat(question: str, SessionId: str, model: str = "gemma3:1b") -> str:
     """
     This function takes a question and a session ID, and returns the response
-    from the Generative AI model.
+    from the Generative AI model.   
 
     It creates a prompt template, a chain with a Generative AI model,
     and a history with a MongoDB database. It then invokes the chain
@@ -43,7 +46,7 @@ def chat(question: str, session_id: str, model: str = "gemma3:1b") -> str:
                     "so you answer must be like you are a real human, "
                     "and your conversation is transcribed, "
                     "you will only give that transcribed text. "
-                    "please answer in short unless it is needed or you are asked to. "
+                    "please give quality answer rather than long. "
                     "never use any emoji."
                 ),
             ),
@@ -61,7 +64,7 @@ def chat(question: str, session_id: str, model: str = "gemma3:1b") -> str:
         lambda session_id: MongoDBChatMessageHistory(
             session_id=session_id,
             connection_string="mongodb://localhost:27017",
-            database_name="chat_history_db",
+            database_name="LLM_chats_db",
             collection_name="chat_histories",
         ),
         input_messages_key="question",
@@ -69,7 +72,7 @@ def chat(question: str, session_id: str, model: str = "gemma3:1b") -> str:
     )
 
     # Create the config with the session ID
-    config = {"configurable": {"session_id": session_id}}
+    config = {"configurable": {"session_id": SessionId}}
 
     # Invoke the chain with the question and the config
     response = chain_with_history.invoke({"question": question}, config=config)
@@ -78,7 +81,7 @@ def chat(question: str, session_id: str, model: str = "gemma3:1b") -> str:
 
 
 def get_chat_history(
-    session_id: str,
+    SessionId: str,
 ) -> List[Literal[HumanMessage, AIMessage]]:
     """
     This function takes a session ID and returns the chat history associated with it.
@@ -88,14 +91,14 @@ def get_chat_history(
     """
     chat_message_history = MongoDBChatMessageHistory(
         connection_string="mongodb://localhost:27017/",
-        database_name="chat_history_db",
+        database_name="LLM_chats_db",
         collection_name="chat_histories",
-        session_id=session_id,
+        session_id=SessionId,
     )
     return chat_message_history.messages
 
 
-def generate_chat_name(session_id: str, model: str = "gemma3:1b") -> str:
+def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
     """
     This function takes a session ID and returns a string that summarizes the chat history
     associated with it.
@@ -129,7 +132,7 @@ def generate_chat_name(session_id: str, model: str = "gemma3:1b") -> str:
     chain = prompt | llm
 
     # Invoke the chain with the chat history
-    response = chain.invoke({"history": get_chat_history(session_id)})
+    response = chain.invoke({"history": get_chat_history(SessionId)})
 
     return response
 
@@ -138,6 +141,6 @@ if __name__ == "__main__":
 
     # testing
     while (question := input("You: ")) != "exit":
-        print("Assistant:", chat(question, session_id="test_session_3"))
+        print("Assistant:", chat(question, SessionId="test_session"))
 
     # print(create_chat_name(session_id="test_session_3"))
