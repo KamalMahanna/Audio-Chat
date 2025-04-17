@@ -1,5 +1,5 @@
 openai-whisper
-kokoro
+kokoro>=0.9.4
 numpy
 soundfile
 langchain-ollama
@@ -7,3 +7,7 @@ langchain-core
 langchain-mongodb
 fastapi-cors
 fastapi
+markdown
+beautifulsoup4
+uvicorn
+python-multipart

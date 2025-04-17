@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 
+import re
 import markdown
 from bs4 import BeautifulSoup
 
@@ -85,6 +86,9 @@ def get_chat_name(SessionId: str, model: str):
     """
 
     generated_chat_name = generate_chat_name(SessionId=SessionId, model=model)
+
+    # removing cot from the chat name
+    generated_chat_name = re.sub(r'<think>.*?</think>\s*', '', generated_chat_name, flags=re.DOTALL)
 
     if chat_meta_collection.find_one({"SessionId": SessionId}):
         raise Exception("Session ID already exists in database.")
@@ -218,8 +222,12 @@ async def voice_interaction(
     # get response from the Generative AI model
     response = chat(transcribed_text, SessionId, model)
     print('response: ', response)
+    
+    #i dont want cot in my audio
+    response = re.sub(r'<think>.*?</think>\s*', '', response, flags=re.DOTALL)
     #converting to regular text
     response = md_to_text(response)
+    
     # get audio from the response
     audio = get_audio(text=response, voice=voice)
     print("audio is ready", "_" * 50)

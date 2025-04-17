@@ -135,7 +135,7 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
                 ------------
                 {complete_message}
                 ------------
-                Now summarize the chat history in 5 words or less.
+                Now summarize these chats within 5 words.
                 """,
             ),
         ]
