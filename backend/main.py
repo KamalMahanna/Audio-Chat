@@ -33,6 +33,7 @@ chat_meta_collection = chat_history_db["chat_meta"]
 app = FastAPI()
 origins = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -205,17 +206,15 @@ async def voice_interaction(
 
     # get response from the Generative AI model
     response = chat(transcribed_text, SessionId, model)
-    print('response', response)
+    print('response: ', response)
     # get audio from the response
     audio = get_audio(text=response, voice=voice)
-
+    print("audio is ready", "_" * 50)
     # return the audio
     return StreamingResponse(audio, media_type="audio/wav")
 
 
 if __name__ == "__main__":
-
-    # print([i for i in get_SessionId_n_names().chat_sessions])
 
     SessionId = "test_session_1"
 
@@ -229,19 +228,4 @@ if __name__ == "__main__":
 
     print(get_chat_name(SessionId=SessionId, model="gemma3:1b"))
 
-    # from utils.AudioUtils import play_audio
-    # while (question := input("You: ").strip()) != "exit":
-    #     response = chat(question)
-    #     print("Assistant:", response)
-    #     audio = get_audio(response)
-    #     play_audio(audio)
 
-    # print(get_SessionId_n_names())
-    # list_of_chat_history = chat_history(SessionId="test_session")
-    # print("-"*30)
-    # print(list_of_chat_history)
-    # print("-"*30)
-    # response_data = [item.model_dump(by_alias=True) for item in list_of_chat_history]
-    # print(response_data)
-    # print( "-"*30)
-    # print(json.dumps(response_data, indent=4))

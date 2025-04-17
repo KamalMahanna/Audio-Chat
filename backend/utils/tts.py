@@ -2,6 +2,8 @@ from kokoro import KPipeline
 import soundfile as sf
 import io
 from typing import Generator
+import numpy as np 
+import torch 
 
 voice_names = {
     "default": "af_bella",
@@ -18,8 +20,7 @@ voice_names = {
     "lewis": "bm_lewis",
 }
 
-
-def get_audio(text: str, voice: str = "heart") -> Generator[bytes, None, None]:
+def get_audio(text: str, voice: str = "bella") -> bytes:
     """
     Converts text to audio using Kokoro's text-to-speech model.
 
@@ -28,36 +29,22 @@ def get_audio(text: str, voice: str = "heart") -> Generator[bytes, None, None]:
         voice (str): The voice to use for the text-to-speech model.
 
     Returns:
-        generator: The generated audio in wav format as a generator.
+        generator: The generated audio in wav format (PCM_16) as a generator.
     """
-    voice = voice_names.get(voice, voice)
-
+    voice = voice_names.get(voice, "af_bella")
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     generator = pipeline(text, voice=voice)
 
+    audio_chunks = []
     for _, _, audio in generator:
-        print("Sending a audio...")
-        buf = io.BytesIO()
-        sf.write(buf, audio, samplerate=24000, format="wav")
-        yield buf.read()
+        audio_chunks.append(audio)
 
+    full_audio = torch.concatenate(audio_chunks)
+    numpy_full_audio = full_audio.numpy()
+    
+    buf = io.BytesIO()
+    sf.write(buf, numpy_full_audio, samplerate=24000, format='wav')
+    buf.seek(0)
+    
+    return buf
 
-if __name__ == "__main__":
-    """
-    Example usage of the get_audio function.
-    """
-    import warnings
-    import time
-
-    warnings.filterwarnings("ignore")
-
-    from AudioUtils import play_audio
-
-    text = """
-    I know PyAudio can be used to record speech from the microphone dynamically and there a couple of real-time visualization examples of a waveform, spectrum, spectrogram, etc, but could not find anything relevant to carrying out feature extraction in a near real-time manner.
-    """
-    start_time = time.time()
-    audio_numpy_array = get_audio(text)
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
-    play_audio(audio_numpy_array)

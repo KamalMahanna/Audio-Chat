@@ -40,50 +40,69 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [currentVoiceIndex, setCurrentVoiceIndex] = useState(
     availableVoices.indexOf(selectedVoice) >= 0 ? availableVoices.indexOf(selectedVoice) : availableVoices.indexOf('bella')
   );
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isVoicePlaying, setIsVoicePlaying] = useState(false); // State for play/pause toggle
+  const audioRef = useRef<HTMLAudioElement | null>(null); // Ref to hold the single audio element
+  const [isVoicePlaying, setIsVoicePlaying] = useState(false);
+  const [currentVoiceUrl, setCurrentVoiceUrl] = useState<string | null>(null); // Track the URL being played
 
-  // REMOVED useEffect that was causing the preview index to reset inappropriately
-  
-  // Cleanup function to stop audio when sidebar closes or component unmounts
+  // Setup event listeners for the single audio element
   useEffect(() => {
-    return () => {
-      audioRef.current?.pause();
+    const audioEl = audioRef.current;
+    if (!audioEl) return;
+
+    const handlePlay = () => setIsVoicePlaying(true);
+    const handlePause = () => setIsVoicePlaying(false);
+    const handleEnded = () => setIsVoicePlaying(false);
+    const handleError = (e: Event) => {
+      console.error("Audio element error (Sidebar):", e, "Src:", audioEl.src);
+      setIsVoicePlaying(false);
+      setCurrentVoiceUrl(null); // Reset URL on error
     };
-  }, []);
-  
+
+    audioEl.addEventListener('play', handlePlay);
+    audioEl.addEventListener('pause', handlePause);
+    audioEl.addEventListener('ended', handleEnded);
+    audioEl.addEventListener('error', handleError);
+
+    // Cleanup listeners on unmount or element change (though it shouldn't change now)
+    return () => {
+      audioEl.removeEventListener('play', handlePlay);
+      audioEl.removeEventListener('pause', handlePause);
+      audioEl.removeEventListener('ended', handleEnded);
+      audioEl.removeEventListener('error', handleError);
+      // Pause audio on unmount
+      audioEl.pause();
+    };
+  }, []); // Run only once when the audio element is potentially mounted
+
   const playVoice = (voiceName: string) => {
     const voiceAudioUrl = `/voices/${voiceName}.wav`;
-    
+    const audioEl = audioRef.current;
+
+    if (!audioEl) {
+        console.error("Sidebar audio element ref is not available.");
+        return;
+    }
+
     // If clicking the button for the currently loaded and playing voice, pause it.
-    if (audioRef.current && audioRef.current.src.endsWith(voiceAudioUrl) && isVoicePlaying) {
-      audioRef.current.pause();
-      // No need to set isVoicePlaying(false) here, the 'onpause' listener will handle it
-    } else {
-      // Stop any currently playing audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        // Remove previous listeners to prevent duplicates if any
-        audioRef.current.onplay = null;
-        audioRef.current.onpause = null;
-        audioRef.current.onended = null;
-        audioRef.current.onerror = null;
-      }
-      
-      // Create and play the new audio
-      const newAudio = new Audio(voiceAudioUrl);
-      newAudio.onplay = () => setIsVoicePlaying(true);
-      newAudio.onpause = () => setIsVoicePlaying(false);
-      newAudio.onended = () => setIsVoicePlaying(false); // Also set to false when audio naturally finishes
-      newAudio.onerror = () => {
-          console.error(`Error playing audio: ${voiceAudioUrl}`);
-          setIsVoicePlaying(false); // Reset state on error
-      };
-      
-      audioRef.current = newAudio;
-      audioRef.current.play().catch(error => {
-        console.error("Audio play failed:", error);
+    if (currentVoiceUrl === voiceAudioUrl && isVoicePlaying) {
+      audioEl.pause();
+    }
+    // If clicking the button for the currently loaded but paused voice, play it.
+    else if (currentVoiceUrl === voiceAudioUrl && !isVoicePlaying) {
+      audioEl.play().catch(error => {
+        console.error("Audio play failed (re-play):", error);
         setIsVoicePlaying(false); // Ensure state is false if play promise rejects
+      });
+    }
+    // Otherwise, load and play the new voice
+    else {
+      audioEl.src = voiceAudioUrl;
+      setCurrentVoiceUrl(voiceAudioUrl); // Track the new URL
+      audioEl.load(); // Load the new source
+      audioEl.play().catch(error => {
+        console.error("Audio play failed (new load):", error);
+        setIsVoicePlaying(false); // Ensure state is false if play promise rejects
+        setCurrentVoiceUrl(null); // Reset URL on error
       });
     }
   };
@@ -300,14 +319,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         <ChevronLeft size={20} />
                       </motion.button>
 
+                      {/* Hidden Audio Element for Previews */}
+                      <audio ref={audioRef} className="hidden" preload="auto" />
+
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => playVoice(availableVoices[currentVoiceIndex])}
                         className="p-3 rounded-full bg-primary-light dark:bg-primary-dark text-white shadow-md"
-                        aria-label={isVoicePlaying ? "Pause current voice sample" : "Play current voice sample"}
+                        // Determine playing state based on the specific URL being played
+                        aria-label={(isVoicePlaying && currentVoiceUrl?.endsWith(availableVoices[currentVoiceIndex] + '.wav')) ? "Pause current voice sample" : "Play current voice sample"}
                       >
-                        {isVoicePlaying
+                        {(isVoicePlaying && currentVoiceUrl?.endsWith(availableVoices[currentVoiceIndex] + '.wav'))
                           ? <Pause size={20} className="fill-current" />
                           : <Play size={20} className="fill-current" />}
                       </motion.button>

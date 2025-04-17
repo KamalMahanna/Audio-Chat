@@ -23,113 +23,59 @@ export const AudioMode: React.FC = () => {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // State for managing chunked playback
-  const [audioQueue, setAudioQueue] = useState<string[]>([]);
-  const [isPlayingResponse, setIsPlayingResponse] = useState(false);
-  const isPlayingRef = useRef(false); // Ref to track playing state reliably in callbacks
-
-  // Ref for audio element to use in error handling
-  const audioElRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    audioElRef.current = audioPlaybackRef.current;
-  }, [audioPlaybackRef.current]); // Update ref when audioPlaybackRef changes
-
-  useEffect(() => {
-    isPlayingRef.current = isPlayingResponse;
-  }, [isPlayingResponse]);
-
-
-  // Function to play the next audio chunk from the queue
-  const playNextChunk = useCallback(() => {
-    // Check if queue has items, audio ref exists, and not currently playing
-    if (audioQueue.length > 0 && audioPlaybackRef.current && !isPlayingRef.current) {
-      const audioEl = audioPlaybackRef.current; // Get reference
-      const nextUrl = audioQueue[0]; // Get URL
-      setAudioQueue(prev => prev.slice(1)); // Remove URL from state queue immediately
-
-      console.log(`Attempting to play chunk: ${nextUrl}`); // Log attempt
-      console.log(`Audio state before play: paused=${audioEl.paused}, muted=${audioEl.muted}, volume=${audioEl.volume}, src=${audioEl.src}`);
-
-      setIsPlayingResponse(true); // Set playing state
-      audioEl.src = nextUrl; // Set src
-      audioEl.load(); // Load new src
-
-      // Explicitly set volume in case it was somehow changed
-      audioEl.volume = 1.0;
-      audioEl.muted = false;
-
-      const playPromise = audioEl.play(); // Attempt play
-
-      if (playPromise !== undefined) {
-          playPromise.then(() => {
-             console.log("Playback started successfully for:", nextUrl); // Add success log
-          }).catch(e => { // Catch errors
-              console.error("Playback promise rejected for URL:", nextUrl, e);
-              setIsPlayingResponse(false); // Reset state on error
-              // Try playing next chunk after an error
-               if (audioElRef.current?.currentSrc && audioElRef.current.currentSrc.startsWith('blob:')) { // Check if src exists before revoking
-                   URL.revokeObjectURL(audioElRef.current.currentSrc); // Revoke failed URL
-                   console.log("Revoked URL on playback error:", audioElRef.current.currentSrc);
-               }
-               playNextChunkRef.current(); // Try playing next after error
-           });
-      } else {
-          console.warn("audioEl.play() did not return a promise. Playback might not be initiated.");
-           // If play doesn't return a promise, it might have failed synchronously or be in a state where it can't play.
-           // We might need to rely on events like 'error' or 'stalled'.
-           setIsPlayingResponse(false); // Reset playing state as a precaution
-      }
-
-    } else {
-        console.log("Conditions not met for playNextChunk:");
-        if (audioQueue.length === 0) console.log("- Audio queue empty.");
-        if (!audioPlaybackRef.current) console.log("- Audio element ref is null.");
-        if (isPlayingRef.current) console.log("- Another chunk is already playing.");
-    }
-  }, [audioQueue]); // Dependency on audioQueue
-
-  // Ref to keep playNextChunk stable in callbacks
-  const playNextChunkRef = useRef(playNextChunk);
-  useEffect(() => {
-      playNextChunkRef.current = playNextChunk;
-  }, [playNextChunk]);
-
-  // Effect to trigger playback when queue is updated and not playing
-  useEffect(() => {
-    // console.log(`Queue changed (length: ${audioQueue.length}), isPlaying: ${isPlayingResponse}`); // Reduced verbosity
-    if (!isPlayingResponse && audioQueue.length > 0) {
-      console.log("Triggering playNextChunk from useEffect");
-      playNextChunkRef.current();
-    }
-  }, [audioQueue, isPlayingResponse]); // Depend on queue and playing state
+  // State for managing playback
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const currentAudioUrlRef = useRef<string | null>(null); // To store the current blob URL for cleanup
 
   useEffect(() => {
     const audioEl = audioPlaybackRef.current;
     if (audioEl) {
+      // Handle playback end
       const handleAudioEnd = () => {
-        console.log("Chunk ended:", audioEl.currentSrc);
-        setIsPlayingResponse(false); // Set playing state to false
-        // Clean up the ended blob URL
-        if (audioEl.currentSrc && audioEl.currentSrc.startsWith('blob:')) {
-            URL.revokeObjectURL(audioEl.currentSrc);
-            console.log("Revoked URL on ended:", audioEl.currentSrc);
+        console.log("Audio ended:", audioEl.currentSrc);
+        setIsAudioPlaying(false);
+        // Clean up the blob URL slightly delayed
+        const urlToRevoke = currentAudioUrlRef.current; // Capture the URL
+        if (urlToRevoke) {
+          setTimeout(() => {
+              try {
+                URL.revokeObjectURL(urlToRevoke);
+                console.log("Revoked URL (delayed) on ended:", urlToRevoke);
+                // Only nullify if it hasn't been replaced by a new URL in the meantime
+                if (currentAudioUrlRef.current === urlToRevoke) {
+                   currentAudioUrlRef.current = null;
+                }
+              } catch (e) {
+                  console.error("Error revoking URL (delayed):", urlToRevoke, e);
+              }
+          }, 100); // Delay revocation by 100ms
+          // Note: Don't nullify currentAudioUrlRef.current immediately here
         }
       };
       audioEl.addEventListener('ended', handleAudioEnd);
 
-      // Handle errors
+      // Handle errors - Only log, don't change state or revoke URL here,
+      // as errors might be triggered by external scripts (hook.js) after normal completion/revocation.
+      // The 'ended' handler is responsible for cleanup.
       const handleAudioError = (e: Event) => {
-          console.error("Audio element error event:", e, "Src:", audioEl.currentSrc);
-          setIsPlayingResponse(false);
-          // Clean up potentially broken blob URL
-          if (audioEl.currentSrc && audioEl.currentSrc.startsWith('blob:')) {
-              URL.revokeObjectURL(audioEl.currentSrc);
-              console.log("Revoked URL on audio element error:", audioEl.currentSrc);
-          }
-      }
+        // Check if the error source still exists before logging potentially confusing messages
+        if (audioEl && audioEl.currentSrc) {
+            console.error("Audio element error event:", e, "Src:", audioEl.currentSrc);
+        } else {
+            console.warn("Audio element error event occurred, but element or src is already null/empty:", e);
+        }
+        // --- REMOVED ---
+        // setIsAudioPlaying(false);
+        // if (currentAudioUrlRef.current) {
+        //   URL.revokeObjectURL(currentAudioUrlRef.current);
+        //   console.log("Revoked URL on audio error:", currentAudioUrlRef.current);
+        //   currentAudioUrlRef.current = null;
+        // }
+        // --- END REMOVED ---
+      };
       audioEl.addEventListener('error', handleAudioError);
 
-      // Add listener for canplay
+      // Add listener for canplay (useful for debugging)
       const handleCanPlay = () => {
           console.log("Audio can play:", audioEl.src);
       };
@@ -138,7 +84,6 @@ export const AudioMode: React.FC = () => {
       // Add listener for loadeddata
       const handleLoadedData = () => {
             console.log("Audio loadeddata:", audioEl.src);
-            // You could potentially try playing here again if initial play failed, but be careful of loops
       };
       audioEl.addEventListener('loadeddata', handleLoadedData);
 
@@ -146,20 +91,32 @@ export const AudioMode: React.FC = () => {
       return () => {
         audioEl.removeEventListener('ended', handleAudioEnd);
         audioEl.removeEventListener('error', handleAudioError);
-        audioEl.removeEventListener('canplay', handleCanPlay); // Cleanup canplay listener
-        audioEl.removeEventListener('loadeddata', handleLoadedData); // Cleanup loadeddata listener
+        audioEl.removeEventListener('canplay', handleCanPlay);
+        audioEl.removeEventListener('loadeddata', handleLoadedData);
 
-        // Clean up any remaining URLs in the queue on component unmount
-        console.log("Cleaning up audio queue on unmount.");
-        setAudioQueue(currentQueue => {
-            currentQueue.forEach(url => URL.revokeObjectURL(url));
-            return [];
-        });
+        // Clean up the current URL if component unmounts while playing
+        if (currentAudioUrlRef.current) {
+            console.log("Cleaning up audio URL on unmount.");
+            URL.revokeObjectURL(currentAudioUrlRef.current);
+            currentAudioUrlRef.current = null;
+        }
       };
     } else {
         console.log("Audio element ref is null in event listener setup effect.");
     }
   }, []); // Run only once on mount
+
+  // Cleanup audio URL on component unmount if needed
+  useEffect(() => {
+      return () => {
+          if (currentAudioUrlRef.current) {
+              console.log("Revoking audio URL on component unmount:", currentAudioUrlRef.current);
+              URL.revokeObjectURL(currentAudioUrlRef.current);
+              currentAudioUrlRef.current = null;
+          }
+      };
+  }, []);
+
 
   useEffect(() => {
     if (containerRef.current) {
@@ -182,17 +139,18 @@ export const AudioMode: React.FC = () => {
 
            // Load waveform when audio source changes and can play
            const handleCanPlayWs = () => { // Renamed to avoid conflict
-               if (audioEl.src && audioEl.src.startsWith('blob:')) {
+               // Load waveform only when a valid blob src is set and audio can play
+               if (audioEl.src && audioEl.src.startsWith('blob:') && currentAudioUrlRef.current === audioEl.src) {
                     console.log("WaveSurfer: Loading waveform for:", audioEl.src);
                     ws?.load(audioEl.src).catch(e => console.error("WaveSurfer load error:", e));
-               } else {
-                   if(ws?.getActivePlugins()?.[0]) { // Basic check if wavesurfer is ready
-                     console.log("WaveSurfer: Emptying waveform.");
-                     ws?.empty(); // Clear waveform if no valid source
-                   }
+               } else if (ws?.getActivePlugins()?.[0]) { // Basic check if wavesurfer is ready
+                    // Don't clear immediately on src change, wait for new load or end
+                    // console.log("WaveSurfer: Source changed or invalid, potentially emptying.");
+                    // ws?.empty();
                }
            };
-           audioEl.addEventListener('canplay', handleCanPlayWs);
+           // Use 'loadedmetadata' instead of 'canplay' for more reliable loading trigger
+           audioEl.addEventListener('loadedmetadata', handleCanPlayWs);
 
            // Update WaveSurfer progress during playback
            const handleTimeUpdateWs = () => { // Renamed
@@ -203,20 +161,22 @@ export const AudioMode: React.FC = () => {
            };
            audioEl.addEventListener('timeupdate', handleTimeUpdateWs);
 
-           // Reset WaveSurfer when playback ends
-           const handleEndedWs = () => { // Renamed
-              if(ws?.getActivePlugins()?.[0]){
-                console.log("WaveSurfer: Emptying waveform on end.");
-                ws?.empty(); // Option 2: Clear waveform (might be better for chunks)
+           // Clear WaveSurfer when playback ends or errors
+           const handleEndedOrErrorWs = () => {
+              if(ws?.getActivePlugins()?.[0]){ // Basic check if wavesurfer is ready
+                console.log("WaveSurfer: Emptying waveform on end/error.");
+                ws?.empty();
               }
            };
-           audioEl.addEventListener('ended', handleEndedWs);
+           audioEl.addEventListener('ended', handleEndedOrErrorWs);
+           audioEl.addEventListener('error', handleEndedOrErrorWs); // Also clear on error
 
 
            return () => {
-               audioEl.removeEventListener('canplay', handleCanPlayWs);
+               audioEl.removeEventListener('loadedmetadata', handleCanPlayWs);
                audioEl.removeEventListener('timeupdate', handleTimeUpdateWs);
-               audioEl.removeEventListener('ended', handleEndedWs);
+               audioEl.removeEventListener('ended', handleEndedOrErrorWs);
+               audioEl.removeEventListener('error', handleEndedOrErrorWs);
            };
        } else {
          console.log("Audio element ref is null for WaveSurfer setup.");
@@ -244,13 +204,16 @@ export const AudioMode: React.FC = () => {
       console.log('Created and set new audio session:', targetSessionId);
     }
 
-    // Reset audio queue and state before starting
-    console.log("Resetting audio queue and state for new recording.");
-    setAudioQueue(currentQueue => {
-        currentQueue.forEach(url => URL.revokeObjectURL(url)); // Clean up old URLs
-        return [];
-    });
-    setIsPlayingResponse(false); // Ensure playing state is reset
+    // Clean up previous audio if any and reset state
+    if (currentAudioUrlRef.current) {
+      console.log("Revoking previous audio URL before new recording:", currentAudioUrlRef.current);
+      URL.revokeObjectURL(currentAudioUrlRef.current);
+      currentAudioUrlRef.current = null;
+    }
+    if (audioPlaybackRef.current) {
+        audioPlaybackRef.current.src = ''; // Clear src
+    }
+    setIsAudioPlaying(false); // Ensure playing state is reset
     wavesurferRef.current?.empty(); // Clear old waveform
 
     try {
@@ -277,58 +240,55 @@ export const AudioMode: React.FC = () => {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          if (response.body && response.headers.get('Content-Type')?.includes('audio/wav')) {
-            const reader = response.body.getReader();
+          // Check for audio content type
+          if (response.headers.get('Content-Type')?.includes('audio')) {
+            console.log("Received audio response. Processing as single blob.");
+            const audioBlob = await response.blob(); // Read entire response as blob
+            const audioUrl = URL.createObjectURL(audioBlob);
+            console.log("Created blob URL:", audioUrl);
 
-            // Function to process stream
-            const processStream = async () => {
-              let chunkIndex = 0; // Add index for logging
-              while (true) {
-                try {
-                    console.log(`[Stream Loop ${chunkIndex}]: Calling reader.read()...`); // Log read attempt
-                    const { done, value } = await reader.read();
-                    console.log(`[Stream Loop ${chunkIndex}]: reader.read() returned: done=${done}, value size=${value?.byteLength ?? 'undefined'}`); // Log result
+            // Clean up previous URL if exists (safety check)
+             if (currentAudioUrlRef.current) {
+               URL.revokeObjectURL(currentAudioUrlRef.current);
+               console.log("Revoked existing URL before playing new one:", currentAudioUrlRef.current);
+             }
+            currentAudioUrlRef.current = audioUrl; // Store the new URL
 
-                    if (done) {
-                      console.log("[Stream Loop]: Stream finished (done is true).");
-                      // Final check to reset playing state if queue becomes empty and nothing ended up playing
-                       if (!isPlayingRef.current && audioQueue.length === 0) {
-                          setIsPlayingResponse(false);
-                       }
-                      break;
-                    }
+            if (audioPlaybackRef.current) {
+              const audioEl = audioPlaybackRef.current;
+              audioEl.src = audioUrl;
+              audioEl.load(); // Important: Load the new source
 
-                    if (value) { // Check if value exists
-                      // We assume each 'value' is a complete WAV chunk from the backend
-                      const chunkBlob = new Blob([value], { type: 'audio/wav' });
-                      const chunkUrl = URL.createObjectURL(chunkBlob);
-                      console.log(`[Stream Loop ${chunkIndex}]: Received chunk, adding URL to queue: ${chunkUrl}`);
-
-                      // Add to queue. Playback is triggered by the useEffect hook.
-                      setAudioQueue(prev => [...prev, chunkUrl]);
-                    } else {
-                       console.log(`[Stream Loop ${chunkIndex}]: Received no value, but not done yet.`); // Log if value is undefined but not done
-                    }
-
-                    chunkIndex++; // Increment index
-
-                } catch (error) {
-                    console.error(`[Stream Loop ${chunkIndex}]: Error reading stream:`, error);
-                     setIsPlayingResponse(false); // Reset playing state on stream error
-                    break;
-                }
+              const playPromise = audioEl.play();
+              if (playPromise !== undefined) {
+                 setIsAudioPlaying(true); // Set playing state
+                 playPromise.then(() => {
+                    console.log("Playback started for:", audioUrl);
+                 }).catch(e => {
+                    console.error("Playback promise rejected for URL:", audioUrl, e);
+                    setIsAudioPlaying(false); // Reset state on playback error
+                    // Error handler will revoke URL
+                 });
+              } else {
+                 console.warn("audioEl.play() did not return a promise.");
+                 setIsAudioPlaying(false);
               }
-            };
-
-            processStream(); // Start processing the stream
-
+            } else {
+               console.error("Audio playback element not found.");
+               setIsAudioPlaying(false);
+               // Revoke URL immediately if playback element is missing
+               URL.revokeObjectURL(audioUrl);
+               currentAudioUrlRef.current = null;
+            }
           } else {
-               console.warn("Response body missing or incorrect Content-Type:", response.headers.get('Content-Type'));
-                setIsPlayingResponse(false); // Reset playing state if response is invalid
+               console.warn("Response was not audio. Content-Type:", response.headers.get('Content-Type'));
+               const errorText = await response.text();
+               console.error("Non-audio response body:", errorText);
+               setIsAudioPlaying(false); // Reset playing state if response is not audio
           }
         } catch (error) {
           console.error('Error sending audio or processing response:', error);
-           setIsPlayingResponse(false); // Also reset playing state on fetch/processing error
+           setIsAudioPlaying(false); // Also reset playing state on fetch/processing error
         }
       };
 
@@ -337,7 +297,7 @@ export const AudioMode: React.FC = () => {
       setIsRecording(true);
     } catch (error) {
       console.error('Error accessing microphone:', error);
-       setIsPlayingResponse(false); // Reset playing state if mic access fails
+       setIsAudioPlaying(false); // Reset playing state if mic access fails
     }
   };
 
@@ -364,18 +324,19 @@ export const AudioMode: React.FC = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={isRecording ? stopRecording : startRecording}
-        disabled={isPlayingResponse} // Corrected: Only disable when playing response
+        disabled={isAudioPlaying} // Disable button when audio is playing
         className={`p-6 rounded-full shadow-xl transition-all duration-300 ${
           isRecording
             ? 'bg-red-500 hover:bg-red-600' // Style for recording (stop) state
-            : isPlayingResponse
-              ? 'bg-gray-500 cursor-not-allowed' // Style for playing response (disabled)
+            : isAudioPlaying
+              ? 'bg-gray-500 cursor-not-allowed' // Style for playing audio (disabled)
               : 'bg-primary-light dark:bg-primary-dark hover:opacity-90' // Style for ready (start) state
-        } text-white opacity-80 disabled:opacity-50`} // General disabled style (now applies only when playing)
+        } text-white opacity-80 disabled:opacity-50`} // General disabled style
       >
         {isRecording ? <Square size={32} /> : <Mic size={32} />}
       </motion.button>
 
+      {/* Recording indicator */}
       {isRecording && (
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
@@ -383,11 +344,13 @@ export const AudioMode: React.FC = () => {
           className="w-6 h-6 bg-red-500 rounded-full shadow-lg"
         />
       )}
-       {isPlayingResponse && !isRecording && ( // Show indicator only when playing and not recording
+      {/* Audio Playing indicator */}
+      {isAudioPlaying && !isRecording && (
             <motion.div
                 animate={{ scale: [1, 1.1, 1], opacity: [0.8, 0.5, 0.8] }}
                 transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
                 className="w-4 h-4 bg-green-500 rounded-full shadow-md"
+                title="Playing response" // Add title for clarity
             />
         )}
     </div>

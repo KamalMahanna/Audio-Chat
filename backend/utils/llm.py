@@ -132,11 +132,11 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
             (
                 "human",
                 """ Below i the questions asked by the user.
-            ------------
-            {complete_message}
-            ------------
-            Now summarize the chat history in 5 words or less.
-            """,
+                ------------
+                {complete_message}
+                ------------
+                Now summarize the chat history in 5 words or less.
+                """,
             ),
         ]
     )
