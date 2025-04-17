@@ -12,6 +12,17 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 
+import markdown
+from bs4 import BeautifulSoup
+
+def md_to_text(md):
+    """
+    convert markdown to text
+    """
+    html = markdown.markdown(md)
+    soup = BeautifulSoup(html, features='html.parser')
+    return soup.get_text()
+
 from utils.DataValidators import (
     ListChatSessionsOutput,
     ChatHistoryOutput,
@@ -207,6 +218,8 @@ async def voice_interaction(
     # get response from the Generative AI model
     response = chat(transcribed_text, SessionId, model)
     print('response: ', response)
+    #converting to regular text
+    response = md_to_text(response)
     # get audio from the response
     audio = get_audio(text=response, voice=voice)
     print("audio is ready", "_" * 50)
