@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { motion } from 'framer-motion';
-import { Mic, Square } from 'lucide-react';
-import WaveSurfer from 'wavesurfer.js';
+import { Mic, Square, Loader2, Volume2 } from 'lucide-react'; // Import new icons
 import { useStore } from '../store';
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
 import { ChatSession } from '../types'; // Import ChatSession type
@@ -20,11 +19,12 @@ export const AudioMode: React.FC = () => {
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Remove wavesurferRef and containerRef
 
-  // State for managing playback
+  // State for managing playback and loading
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // New state for loading indicator
+  // Remove showWaveform state
   const currentAudioUrlRef = useRef<string | null>(null); // To store the current blob URL for cleanup
 
   useEffect(() => {
@@ -34,6 +34,7 @@ export const AudioMode: React.FC = () => {
       const handleAudioEnd = () => {
         console.log("Audio ended:", audioEl.currentSrc);
         setIsAudioPlaying(false);
+        // Don't reset isLoading here, it's handled after fetch/playback attempt
         // Clean up the blob URL slightly delayed
         const urlToRevoke = currentAudioUrlRef.current; // Capture the URL
         if (urlToRevoke) {
@@ -64,8 +65,10 @@ export const AudioMode: React.FC = () => {
         } else {
             console.warn("Audio element error event occurred, but element or src is already null/empty:", e);
         }
+        // Reset loading state on audio error
+        setIsLoading(false);
         // --- REMOVED ---
-        // setIsAudioPlaying(false);
+        // setIsAudioPlaying(false); // Already handled by 'ended' or playback promise rejection
         // if (currentAudioUrlRef.current) {
         //   URL.revokeObjectURL(currentAudioUrlRef.current);
         //   console.log("Revoked URL on audio error:", currentAudioUrlRef.current);
@@ -118,77 +121,6 @@ export const AudioMode: React.FC = () => {
   }, []);
 
 
-  useEffect(() => {
-    if (containerRef.current) {
-      wavesurferRef.current = WaveSurfer.create({
-        container: containerRef.current,
-        waveColor: '#10b981',
-        progressColor: '#047857',
-        cursorColor: 'transparent',
-        height: 200,
-        normalize: true,
-        barWidth: 3,
-        barGap: 3,
-        barRadius: 3,
-      });
-
-      // Sync WaveSurfer with audio element playback
-       if (audioPlaybackRef.current) {
-           const audioEl = audioPlaybackRef.current;
-           const ws = wavesurferRef.current;
-
-           // Load waveform when audio source changes and can play
-           const handleCanPlayWs = () => { // Renamed to avoid conflict
-               // Load waveform only when a valid blob src is set and audio can play
-               if (audioEl.src && audioEl.src.startsWith('blob:') && currentAudioUrlRef.current === audioEl.src) {
-                    console.log("WaveSurfer: Loading waveform for:", audioEl.src);
-                    ws?.load(audioEl.src).catch(e => console.error("WaveSurfer load error:", e));
-               } else if (ws?.getActivePlugins()?.[0]) { // Basic check if wavesurfer is ready
-                    // Don't clear immediately on src change, wait for new load or end
-                    // console.log("WaveSurfer: Source changed or invalid, potentially emptying.");
-                    // ws?.empty();
-               }
-           };
-           // Use 'loadedmetadata' instead of 'canplay' for more reliable loading trigger
-           audioEl.addEventListener('loadedmetadata', handleCanPlayWs);
-
-           // Update WaveSurfer progress during playback
-           const handleTimeUpdateWs = () => { // Renamed
-               // Corrected: Removed ws?.isReady check
-               if (audioEl.duration && ws?.getActivePlugins()?.[0]) { // Basic check if wavesurfer is ready
-                   ws.seekTo(audioEl.currentTime / audioEl.duration);
-               }
-           };
-           audioEl.addEventListener('timeupdate', handleTimeUpdateWs);
-
-           // Clear WaveSurfer when playback ends or errors
-           const handleEndedOrErrorWs = () => {
-              if(ws?.getActivePlugins()?.[0]){ // Basic check if wavesurfer is ready
-                console.log("WaveSurfer: Emptying waveform on end/error.");
-                ws?.empty();
-              }
-           };
-           audioEl.addEventListener('ended', handleEndedOrErrorWs);
-           audioEl.addEventListener('error', handleEndedOrErrorWs); // Also clear on error
-
-
-           return () => {
-               audioEl.removeEventListener('loadedmetadata', handleCanPlayWs);
-               audioEl.removeEventListener('timeupdate', handleTimeUpdateWs);
-               audioEl.removeEventListener('ended', handleEndedOrErrorWs);
-               audioEl.removeEventListener('error', handleEndedOrErrorWs);
-           };
-       } else {
-         console.log("Audio element ref is null for WaveSurfer setup.");
-       }
-    }
-
-    return () => {
-      console.log("Destroying WaveSurfer.");
-      wavesurferRef.current?.destroy();
-    };
-  }, []); // Run only once
-
   const startRecording = async () => {
     // Corrected: Use currentSession from store
     let targetSessionId = currentSession;
@@ -214,7 +146,7 @@ export const AudioMode: React.FC = () => {
         audioPlaybackRef.current.src = ''; // Clear src
     }
     setIsAudioPlaying(false); // Ensure playing state is reset
-    wavesurferRef.current?.empty(); // Clear old waveform
+    setIsLoading(false); // Reset loading state
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -225,6 +157,7 @@ export const AudioMode: React.FC = () => {
 
       recorder.ondataavailable = (e) => chunks.push(e.data);
       recorder.onstop = async () => {
+        setIsLoading(true); // Start loading indicator
         const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
         const formData = new FormData();
         formData.append('audio', blob, 'recording.webm');
@@ -262,33 +195,40 @@ export const AudioMode: React.FC = () => {
               const playPromise = audioEl.play();
               if (playPromise !== undefined) {
                  setIsAudioPlaying(true); // Set playing state
+                 setIsLoading(false); // Stop loading indicator *before* playback starts (or immediately after)
                  playPromise.then(() => {
                     console.log("Playback started for:", audioUrl);
+                    // No need to set loading false here again
                  }).catch(e => {
                     console.error("Playback promise rejected for URL:", audioUrl, e);
                     setIsAudioPlaying(false); // Reset state on playback error
-                    // Error handler will revoke URL
+                    setIsLoading(false); // Ensure loading indicator stops on playback error
+                    // Error handler might revoke URL, or the 'ended' event will
                  });
               } else {
                  console.warn("audioEl.play() did not return a promise.");
                  setIsAudioPlaying(false);
-              }
-            } else {
-               console.error("Audio playback element not found.");
-               setIsAudioPlaying(false);
-               // Revoke URL immediately if playback element is missing
-               URL.revokeObjectURL(audioUrl);
-               currentAudioUrlRef.current = null;
+                 setIsLoading(false); // Stop loading indicator if play() doesn't return promise
+               }
+             } else {
+                console.error("Audio playback element not found.");
+                setIsAudioPlaying(false);
+                setIsLoading(false); // Stop loading indicator if element not found
+                // Revoke URL immediately if playback element is missing
+                if (audioUrl) URL.revokeObjectURL(audioUrl); // Check if audioUrl exists before revoking
+                currentAudioUrlRef.current = null;
             }
           } else {
                console.warn("Response was not audio. Content-Type:", response.headers.get('Content-Type'));
                const errorText = await response.text();
                console.error("Non-audio response body:", errorText);
                setIsAudioPlaying(false); // Reset playing state if response is not audio
+               setIsLoading(false); // Stop loading indicator on non-audio response
           }
         } catch (error) {
           console.error('Error sending audio or processing response:', error);
            setIsAudioPlaying(false); // Also reset playing state on fetch/processing error
+           setIsLoading(false); // Stop loading indicator on fetch/processing error
         }
       };
 
@@ -298,6 +238,7 @@ export const AudioMode: React.FC = () => {
     } catch (error) {
       console.error('Error accessing microphone:', error);
        setIsAudioPlaying(false); // Reset playing state if mic access fails
+       setIsLoading(false); // Reset loading state if mic access fails
     }
   };
 
@@ -310,49 +251,40 @@ export const AudioMode: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8 space-y-12">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-4xl bg-surface-light dark:bg-surface-dark rounded-2xl shadow-glass p-8 backdrop-blur-glass"
-      >
-        <div ref={containerRef} className="w-full h-[200px]" />
-        <audio ref={audioPlaybackRef} className="hidden" /> {/* Playback element */}
-      </motion.div>
+    // Remove the outer motion.div for the waveform container
+    // Keep the audio element
+    // Adjust main div styling if needed (removing space-y-12)
+    <div className="flex flex-col items-center justify-center h-full p-8">
+       <audio ref={audioPlaybackRef} className="hidden" /> {/* Playback element moved here */}
 
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={!(isRecording || isAudioPlaying) ? { scale: 1.05 } : {}} // Disable hover effect during animation
+        whileTap={!(isRecording || isAudioPlaying) ? { scale: 0.95 } : {}} // Disable tap effect during animation
+        animate={isRecording || isAudioPlaying ? { scale: [1, 1.1, 1], opacity: [1, 0.8, 1] } : {}}
+        transition={isRecording || isAudioPlaying ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" } : {}}
         onClick={isRecording ? stopRecording : startRecording}
-        disabled={isAudioPlaying} // Disable button when audio is playing
-        className={`p-6 rounded-full shadow-xl transition-all duration-300 ${
+        disabled={isLoading || isAudioPlaying} // Disable button when loading OR playing audio
+        className={`p-6 rounded-full shadow-xl transition-colors duration-300 ${ // Keep color transition smooth
           isRecording
             ? 'bg-red-500 hover:bg-red-600' // Style for recording (stop) state
-            : isAudioPlaying
-              ? 'bg-gray-500 cursor-not-allowed' // Style for playing audio (disabled)
+            : isLoading || isAudioPlaying
+              ? 'bg-gray-500 cursor-not-allowed' // Style for loading or playing audio (disabled)
               : 'bg-primary-light dark:bg-primary-dark hover:opacity-90' // Style for ready (start) state
         } text-white opacity-80 disabled:opacity-50`} // General disabled style
       >
-        {isRecording ? <Square size={32} /> : <Mic size={32} />}
+        {isRecording ? (
+          <Square size={32} />
+        ) : isLoading ? (
+          <Loader2 size={32} className="animate-spin" /> // Loading icon
+        ) : isAudioPlaying ? (
+          <Volume2 size={32} /> // Speaker icon
+        ) : (
+          <Mic size={32} /> // Default Mic icon
+        )}
       </motion.button>
 
-      {/* Recording indicator */}
-      {isRecording && (
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-          className="w-6 h-6 bg-red-500 rounded-full shadow-lg"
-        />
-      )}
-      {/* Audio Playing indicator */}
-      {isAudioPlaying && !isRecording && (
-            <motion.div
-                animate={{ scale: [1, 1.1, 1], opacity: [0.8, 0.5, 0.8] }}
-                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                className="w-4 h-4 bg-green-500 rounded-full shadow-md"
-                title="Playing response" // Add title for clarity
-            />
-        )}
+      {/* Remove recording and playing indicators (lines 284-300) */}
+
     </div>
   );
 };
