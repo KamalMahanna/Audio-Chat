@@ -1,8 +1,6 @@
 from kokoro import KPipeline
 import soundfile as sf
 import io
-from typing import Generator
-import numpy as np 
 import torch 
 
 voice_names = {

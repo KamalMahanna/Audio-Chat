@@ -24,7 +24,7 @@ def check_model(model: str) -> str:
             )
 
 
-def chat(question: str, SessionId: str, model: str = "gemma3:1b") -> str:
+def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3:1b") -> str:
     """
     This function takes a question and a session ID, and returns the response
     from the Generative AI model.
@@ -42,17 +42,7 @@ def chat(question: str, SessionId: str, model: str = "gemma3:1b") -> str:
     # Create the prompt template with system, history, and human messages
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                (
-                    "your output will be sent to a voice model, "
-                    "so you answer must be like you are a real human, "
-                    "and your conversation is transcribed, "
-                    "you will only give that transcribed text. "
-                    "please give quality answer rather than long. "
-                    "never use any emoji."
-                ),
-            ),
+            ("system", "{system_prompt}"),
             MessagesPlaceholder(variable_name="history"),
             ("human", "{question}"),
         ]
@@ -78,7 +68,7 @@ def chat(question: str, SessionId: str, model: str = "gemma3:1b") -> str:
     config = {"configurable": {"session_id": SessionId}}
 
     # Invoke the chain with the question and the config
-    response = chain_with_history.invoke({"question": question}, config=config)
+    response = chain_with_history.invoke({"question": question, "system_prompt": system_prompt}, config=config)
 
     return response
 
