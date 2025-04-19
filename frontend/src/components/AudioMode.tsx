@@ -6,6 +6,17 @@ import { v4 as uuidv4 } from 'uuid'; // Import uuid
 import { ChatSession } from '../types'; // Import ChatSession type
 
 export const AudioMode: React.FC = () => {
+  // --- HINT STATE ---
+  const [showHint, setShowHint] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const seen = localStorage.getItem('audio_hint_shown');
+      if (!seen) {
+        setShowHint(true);
+      }
+    }
+  }, []);
+  // --- END HINT STATE ---
   const {
     isRecording,
     setIsRecording,
@@ -262,7 +273,14 @@ export const AudioMode: React.FC = () => {
         whileTap={!(isRecording || isAudioPlaying) ? { scale: 0.95 } : {}} // Disable tap effect during animation
         animate={isRecording || isAudioPlaying ? { scale: [1, 1.1, 1], opacity: [1, 0.8, 1] } : {}}
         transition={isRecording || isAudioPlaying ? { duration: 1.2, repeat: Infinity, ease: "easeInOut" } : {}}
-        onClick={isRecording ? stopRecording : startRecording}
+        onClick={e => {
+          if (showHint) {
+            setShowHint(false);
+            localStorage.setItem('audio_hint_shown', '1');
+          }
+          if (isRecording) stopRecording();
+          else startRecording();
+        }}
         disabled={isLoading || isAudioPlaying} // Disable button when loading OR playing audio
         className={`p-6 rounded-full shadow-xl transition-colors duration-300 ${ // Keep color transition smooth
           isRecording
@@ -282,6 +300,15 @@ export const AudioMode: React.FC = () => {
           <Mic size={32} /> // Default Mic icon
         )}
       </motion.button>
+
+      {/* Show hint only until mic is clicked for the first time */}
+      {showHint && (
+        <div className="flex flex-col items-center mt-4">
+          <div className="bg-background-light dark:bg-background-dark rounded px-4 py-2 text-sm text-center text-gray-700 dark:text-gray-200 max-w-xs border border-gray-200 dark:border-gray-700">
+            Tap the mic to ask your question, and tap again when you're done asking. We'll handle the rest!
+          </div>
+        </div>
+      )}
 
       {/* Remove recording and playing indicators (lines 284-300) */}
 

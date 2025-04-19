@@ -24,6 +24,9 @@ services:
 
   ollama:
     image: ollama/ollama
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - 11435:11434
     volumes:
