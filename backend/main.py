@@ -16,14 +16,6 @@ import re
 import markdown
 from bs4 import BeautifulSoup
 
-def md_to_text(md):
-    """
-    convert markdown to text
-    """
-    html = markdown.markdown(md)
-    soup = BeautifulSoup(html, features='html.parser')
-    return soup.get_text()
-
 from utils.DataValidators import (
     ListChatSessionsOutput,
     ChatHistoryOutput,
@@ -34,16 +26,25 @@ from utils.stt import transcribe_audio
 import json
 import warnings
 
+def md_to_text(md):
+    """
+    convert markdown to text
+    """
+    html = markdown.markdown(md)
+    soup = BeautifulSoup(html, features='html.parser')
+    return soup.get_text()
+
 warnings.filterwarnings("ignore")
 
 # connect to the database
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb://db:27017/")
 chat_history_db = client["LLM_chats_db"]
 chat_histories_collection = chat_history_db["chat_histories"]
 chat_meta_collection = chat_history_db["chat_meta"]
 
 app = FastAPI()
 origins = [
+    "http://frontend:5173",
     "http://localhost:5173",
     "http://127.0.0.1:5173"
 ]
@@ -225,6 +226,8 @@ async def voice_interaction(
     # transcribe the audio using the correct parameter name
     transcribed_text = transcribe_audio(await audio.read())
 
+    print("transcribed_text: ", transcribed_text)
+    
     system_prompt = """
 
         > **You are a voice-friendly assistant.**

@@ -164,7 +164,7 @@ export const AudioMode: React.FC = () => {
 
         try {
           console.log(`Sending audio to session: ${targetSessionId} using model: ${modelName} with voice: ${selectedVoice}`);
-          const response = await fetch(`http://127.0.0.1:8000/audio/${targetSessionId}/${modelName}/${selectedVoice}`, {
+          const response = await fetch(`http://localhost:8000/audio/${targetSessionId}/${modelName}/${selectedVoice}`, {
             method: 'POST',
             body: formData,
           });

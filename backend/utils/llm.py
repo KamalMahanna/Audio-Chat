@@ -5,18 +5,21 @@ from langchain_ollama.llms import OllamaLLM
 from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
 
 from typing import List, Literal
-import ollama
+from ollama import Client
+import os
 
+ollama_url = os.environ.get("OLLAMA_URL")
+ollama_client = Client(host=ollama_url)
 
 def check_model(model: str) -> str:
     """
     This function takes a model name and check if its downloaded or not.
     If not downloaded it will download the model.
     """
-    model_names = [i["model"] for i in ollama.list().model_dump()["models"]]
+    model_names = [i["model"] for i in ollama_client.list().model_dump()["models"]]
     if model not in model_names:
         try:
-            ollama.pull(model)
+            ollama_client.pull(model)
         except Exception as e:
             raise Exception(
                 f"""Failed to download model. Please ensure you have ollama 
@@ -37,7 +40,7 @@ def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3
     check_model(model=model)
 
     # Create the Generative AI model
-    llm = OllamaLLM(model=model,keep_alive=10)
+    llm = OllamaLLM(model=model,keep_alive=10, base_url = ollama_url)
 
     # Create the prompt template with system, history, and human messages
     prompt = ChatPromptTemplate.from_messages(
@@ -56,7 +59,7 @@ def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3
         chain,
         lambda session_id: MongoDBChatMessageHistory(
             session_id=session_id,
-            connection_string="mongodb://localhost:27017",
+            connection_string="mongodb://db:27017",
             database_name="LLM_chats_db",
             collection_name="chat_histories",
         ),
@@ -83,7 +86,7 @@ def get_chat_history(
     from the MongoDB database.
     """
     chat_message_history = MongoDBChatMessageHistory(
-        connection_string="mongodb://localhost:27017/",
+        connection_string="mongodb://db:27017/",
         database_name="LLM_chats_db",
         collection_name="chat_histories",
         session_id=SessionId,
@@ -131,7 +134,7 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
         ]
     )
 
-    llm = OllamaLLM(model=model,keep_alive=10)
+    llm = OllamaLLM(model=model,keep_alive=10, base_url = ollama_url)
 
     # Create the chain with the prompt and the LLM
     chain = prompt | llm
