@@ -69,6 +69,6 @@ class ChatHistoryOutput(BaseModel):
 
 if __name__ == "__main__":
     checking_chat_history = ChatHistoryOutput(
-        filtered_chat_history=[{"ai": "Hello", "human": "hi"}, {"human": "Hi"}]
+        filtered_chat_history=[{"_id": "123", "type": "ai", "content": "Hello"}, {"_id": "456", "type": "human", "content": "Hi"}]
     )
     print(checking_chat_history)
