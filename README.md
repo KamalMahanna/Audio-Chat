@@ -9,7 +9,7 @@ A fully local, privacy-respecting chat platform enabling both text and audio con
 - **Chat with Local AI Models:** Text and voice chat powered by Ollama and LangChain.
 - **Audio Conversations:** Speak to your AI assistant and receive spoken responses using Whisper (speech-to-text) and Kokoro TTS (text-to-speech).
 - **Persistent Storage:** All chat sessions and histories are stored locally in MongoDB.
-- **Agentic Framework:** Utilizes LangChain for advanced agentic workflows.
+- **LLM Framework:** Utilizes LangChain for building LLM applications.
 - **Modern API:** FastAPI backend for robust, fast, and easy-to-extend APIs.
 - **One-Command Setup:** Docker Compose orchestrates backend, frontend, database, and model services for a frictionless install.
 - **No Cloud Dependency:** All components run locally for maximum privacy and control.
@@ -57,13 +57,22 @@ Below is the folder structure (excluding frontend file details):
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repo-url>
-   cd <project-root>
+   git clone https://github.com/KamalMahanna/Audio-Chat.git
+   cd Audio-Chat
    ```
 
 2. **Start all services:**
+   - For first time build the image with the below command. It will take longer to build (If you curious, for my setup with a 50MB/s internet connection and i3 11 gen processor, it took 10 minutes).
    ```bash
-   docker compose up --build
+   docker compose up -d --build
+   ```
+   - if you have already built the image, you can run
+   ```bash
+   docker compose up -d
+   ```
+   - To stop the services
+   ```bash
+   docker compose down
    ```
 
    This will launch:

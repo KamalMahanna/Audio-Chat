@@ -5,7 +5,6 @@ services:
       - 5173:5173
     depends_on:
       - backend
-      - db
   backend:
     build: ./backend
     ports:
@@ -30,6 +29,7 @@ services:
       - 8.8.4.4
     ports:
       - 11435:11434
+    restart: unless-stopped
     volumes:
       - ollama_volume:/root/.ollama
 volumes:

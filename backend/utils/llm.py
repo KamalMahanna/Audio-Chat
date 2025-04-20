@@ -40,7 +40,7 @@ def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3
     check_model(model=model)
 
     # Create the Generative AI model
-    llm = OllamaLLM(model=model,keep_alive=10, base_url = ollama_url)
+    llm = OllamaLLM(model=model,keep_alive="10m", base_url = ollama_url)
 
     # Create the prompt template with system, history, and human messages
     prompt = ChatPromptTemplate.from_messages(
@@ -137,7 +137,7 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
         ]
     )
 
-    llm = OllamaLLM(model=model,keep_alive=10, base_url = ollama_url)
+    llm = OllamaLLM(model=model,keep_alive="10m", base_url = ollama_url)
 
     # Create the chain with the prompt and the LLM
     chain = prompt | llm
