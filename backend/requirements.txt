@@ -1,13 +1,13 @@
-openai-whisper
 kokoro>=0.9.4
 numpy
 soundfile
-langchain-ollama
+langchain-groq
 langchain-core
 langchain-mongodb
 fastapi-cors
 fastapi
 markdown
+python-dotenv
 beautifulsoup4
 uvicorn
 python-multipart

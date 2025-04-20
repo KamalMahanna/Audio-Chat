@@ -1,7 +1,28 @@
-import whisper
-import tempfile
+from groq import Groq
+from dotenv import load_dotenv
 
-def transcribe_audio(audio_bytes: bytes) -> str: # Changed parameter name and type hint
+import os
+load_dotenv()
+groq_api_key = os.getenv("GROQ_API_KEY")
+
+def transcribe_audio(audio_bytes: bytes) -> str:
+    client = Groq(api_key=groq_api_key)
+    
+    try:
+        transcription = client.audio.transcriptions.create(
+            file=audio_bytes,
+            model="whisper-large-v3",
+            response_format="text",  
+            language="en"
+        )
+        return transcription
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+        return ""
+
+
+
+def transcribe_audio_1(audio_bytes: bytes) -> str:
     """
     Transcribes audio bytes using the Whisper ASR model.
 

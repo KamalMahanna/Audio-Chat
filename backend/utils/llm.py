@@ -1,33 +1,15 @@
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_ollama.llms import OllamaLLM
+from langchain_groq import ChatGroq
 from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
-
 from typing import List, Literal
-from ollama import Client
-import os
-
-ollama_url = os.environ.get("OLLAMA_URL")
-ollama_client = Client(host=ollama_url)
-
-def check_model(model: str) -> str:
-    """
-    This function takes a model name and check if its downloaded or not.
-    If not downloaded it will download the model.
-    """
-    model_names = [i["model"] for i in ollama_client.list().model_dump()["models"]]
-    if model not in model_names:
-        try:
-            ollama_client.pull(model)
-        except Exception as e:
-            raise Exception(
-                f"""Failed to download model. Please ensure you have ollama 
-                installed and entered correct model name: {str(e)}"""
-            )
+from dotenv import load_dotenv
 
 
-def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3:1b") -> str:
+load_dotenv()
+
+def chat(question: str, SessionId: str, system_prompt: str, model: str = "qwen-qwq-32b") -> str:
     """
     This function takes a question and a session ID, and returns the response
     from the Generative AI model.
@@ -37,10 +19,9 @@ def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3
     with the question and the session ID, and returns the response.
     """
 
-    check_model(model=model)
 
     # Create the Generative AI model
-    llm = OllamaLLM(model=model,keep_alive="10m", base_url = ollama_url)
+    llm = ChatGroq(model=model)
 
     # Create the prompt template with system, history, and human messages
     prompt = ChatPromptTemplate.from_messages(
@@ -73,7 +54,7 @@ def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemma3
     # Invoke the chain with the question and the config
     response = chain_with_history.invoke({"question": question, "system_prompt": system_prompt}, config=config)
 
-    return response
+    return response.content
 
 
 def get_chat_history(
@@ -100,7 +81,7 @@ def get_chat_history(
     return human_messages
 
 
-def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
+def generate_chat_name(SessionId: str, model: str = "qwen-qwq-32b") -> str:
     """
     This function takes a session ID and returns a string that summarizes 
     the chat history associated with it.
@@ -108,8 +89,6 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
     It uses the ChatGoogleGenerativeAI class to generate a summary of 
     the chat history, and then returns the summary.
     """
-
-    check_model(model=model)
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -137,7 +116,7 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
         ]
     )
 
-    llm = OllamaLLM(model=model,keep_alive="10m", base_url = ollama_url)
+    llm = ChatGroq(model=model)
 
     # Create the chain with the prompt and the LLM
     chain = prompt | llm
@@ -145,7 +124,7 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
     # Invoke the chain with the chat history
     response = chain.invoke({"complete_message": "\n".join(get_chat_history(SessionId))})
 
-    return response
+    return response.content
 
 
 if __name__ == "__main__":

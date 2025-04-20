@@ -11,6 +11,9 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import re
 import markdown
