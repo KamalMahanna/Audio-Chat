@@ -119,7 +119,10 @@ def generate_chat_name(SessionId: str, model: str = "gemma3:1b") -> str:
                     "Summarize the following chat which is asked by a user"
                     "within five words, which will be used for naming "
                     "the chat title. Ignore introductory chats like "
-                    "hi, hello, who are you, etc."
+                    "hi, hello, who are you, etc. "
+                    "Most importantly only answer the chat name, "
+                    "don't add any additional information or any"
+                    "explanation or preamble."
                 ),
             ),
             (

@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN apt update && apt install -y ffmpeg
+RUN apt update && apt install -y ffmpeg espeak-ng
 RUN pip install uv
 RUN uv pip install --system -r requirements.txt
 

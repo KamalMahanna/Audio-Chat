@@ -5,6 +5,7 @@ services:
       - 5173:5173
     depends_on:
       - backend
+      - db
   backend:
     build: ./backend
     ports:
@@ -30,7 +31,7 @@ services:
     ports:
       - 11435:11434
     volumes:
-      - ollama_volume:/data
+      - ollama_volume:/root/.ollama
 volumes:
   mongo_volume:
   ollama_volume:
