@@ -286,10 +286,10 @@ async def voice_interaction(
 
     - `As an AI language model, I can help you with that.`
     - `You are using an AI assistant trained to respond in natural language.`
-    - `这是一个例子` *(Any non-English text)*
-    - `Sure thing 😄` *(No emojis allowed)*
-    - `Please proceed to the next step.` *(Too formal and robotic)*  
-    - `Do not forget to check your email.` *(Sounds like an instruction manual)*
+    - `这是一个例子` (Any non-English text)
+    - `Sure thing 😄` (No emojis allowed)
+    - `Please proceed to the next step.` (Too formal and robotic)
+    - `Do not forget to check your email.` (Sounds like an instruction manual)
     """
     
     # get response from the Generative AI model

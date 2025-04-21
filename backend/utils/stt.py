@@ -1,13 +1,8 @@
-from groq import Groq
-from dotenv import load_dotenv
+import whisper
 import tempfile
-import os
-
-load_dotenv()
-groq_api_key = os.getenv("GROQ_API_KEY")
 
 
-def transcribe_audio(audio_bytes: bytes) -> str:
+def transcribe_audio(audio_bytes: bytes) -> str:  # Changed parameter name and type hint
     """
     Transcribes audio bytes using the Whisper ASR model.
 
@@ -17,31 +12,26 @@ def transcribe_audio(audio_bytes: bytes) -> str:
     Returns:
         str: The transcribed text.
     """
-    client = Groq(api_key=groq_api_key)
+    model = whisper.load_model("base.en", in_memory=True)
 
-    
     # Save with the correct extension for whisper/ffmpeg
     with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_audio:
-        temp_audio.write(audio_bytes) # Write the received bytes
-        temp_audio_path = temp_audio.name
-    
-    with open(temp_audio_path, "rb") as audio_file:
-        audio_byte_file = audio_file.read() 
-        
+        temp_audio.write(audio_bytes)  # Write the received bytes
+        audio_file_path = temp_audio.name
+
+    # Ensure the file is properly closed before passing the path to whisper
     try:
-        transcription = client.audio.transcriptions.create(
-            file=audio_byte_file,
-            model="whisper-large-v3",
-            response_format="text",  
-            language="en"
-        )
-        return transcription
+        result = model.transcribe(audio_file_path)
+        the_text = result["text"]
+        print(the_text)
+        return the_text
     except Exception as e:
-        print(f"Error during transcription: {e}")
-        return ""
+        print(f"Error during transcription: {e}")  # Improved error logging
+        # Optionally re-raise or return an error indicator
+        return ""  # Return empty string on error for now
     finally:
         # Clean up the temporary file
-        if os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
+        import os
 
-
+        if os.path.exists(audio_file_path):
+            os.remove(audio_file_path)
