@@ -22,10 +22,7 @@ class ListChatSessionsOutput(BaseModel):
     @field_validator("chat_sessions")
     def valid_chat_sessions(cls, v):
         for chat_session in v:
-            if (
-                "SessionId" not in chat_session
-                or "chat_name" not in chat_session
-            ):
+            if "SessionId" not in chat_session or "chat_name" not in chat_session:
                 raise ValueError(
                     "Each chat session must have a SessionId and chat_name"
                 )
@@ -69,6 +66,9 @@ class ChatHistoryOutput(BaseModel):
 
 if __name__ == "__main__":
     checking_chat_history = ChatHistoryOutput(
-        filtered_chat_history=[{"_id": "123", "type": "ai", "content": "Hello"}, {"_id": "456", "type": "human", "content": "Hi"}]
+        filtered_chat_history=[
+            {"_id": "123", "type": "ai", "content": "Hello"},
+            {"_id": "456", "type": "human", "content": "Hi"},
+        ]
     )
     print(checking_chat_history)

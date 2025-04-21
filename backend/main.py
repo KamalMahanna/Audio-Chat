@@ -26,13 +26,15 @@ from utils.stt import transcribe_audio
 import json
 import warnings
 
+
 def md_to_text(md):
     """
     convert markdown to text
     """
     html = markdown.markdown(md)
-    soup = BeautifulSoup(html, features='html.parser')
+    soup = BeautifulSoup(html, features="html.parser")
     return soup.get_text()
+
 
 warnings.filterwarnings("ignore")
 
@@ -43,11 +45,7 @@ chat_histories_collection = chat_history_db["chat_histories"]
 chat_meta_collection = chat_history_db["chat_meta"]
 
 app = FastAPI()
-origins = [
-    "http://frontend:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173"
-]
+origins = ["http://frontend:5173", "http://localhost:5173", "http://127.0.0.1:5173"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -65,16 +63,12 @@ def get_SessionId_n_names():
     Get a list of all chat session IDs and their chat_names in the database.
     """
     chat_sessions = list(
-        chat_meta_collection.find(
-            {}, {"_id": 0, "SessionId": 1, "chat_name": 1}
-        )
+        chat_meta_collection.find({}, {"_id": 0, "SessionId": 1, "chat_name": 1})
     )
     return ListChatSessionsOutput(chat_sessions=chat_sessions[::-1])
 
 
-@app.post(
-    "/get_chat_name/{SessionId}/{model}", response_model=ChatSummaryNameOutput
-)
+@app.post("/get_chat_name/{SessionId}/{model}", response_model=ChatSummaryNameOutput)
 def get_chat_name(SessionId: str, model: str):
     """
     Get the chat name for a specific session.
@@ -89,7 +83,9 @@ def get_chat_name(SessionId: str, model: str):
     generated_chat_name = generate_chat_name(SessionId=SessionId, model=model)
 
     # removing cot from the chat name
-    generated_chat_name = re.sub(r'<think>.*?</think>\s*', '', generated_chat_name, flags=re.DOTALL)
+    generated_chat_name = re.sub(
+        r"<think>.*?</think>\s*", "", generated_chat_name, flags=re.DOTALL
+    )
 
     if chat_meta_collection.find_one({"SessionId": SessionId}):
         raise Exception("Session ID already exists in database.")
@@ -145,14 +141,12 @@ def chat_history(SessionId: str):
         SessionId (str): The ID of the chat session to get the history for.
 
     Returns:
-        ChatHistoryOutput: 
+        ChatHistoryOutput:
             The chat history for the specified session, with each element
             being a dictionary containing the user/ai message.
     """
     # Get the chat history for the specified session
-    chat_history_list = chat_histories_collection.find(
-        {"SessionId": SessionId}
-    )
+    chat_history_list = chat_histories_collection.find({"SessionId": SessionId})
 
     # Filter the chat history into a list of dictionaries
     filtered_chat_history = []
@@ -183,7 +177,7 @@ def chat_history(SessionId: str):
 @app.post("/text/{SessionId}/{model}/{question}")
 def text_interaction(SessionId: str, model: str, question: str) -> str:
     """
-    Get the response from the Generative AI model for a specific session 
+    Get the response from the Generative AI model for a specific session
     and question.
 
     Args:
@@ -193,20 +187,23 @@ def text_interaction(SessionId: str, model: str, question: str) -> str:
     Returns:
         str: The response from the Generative AI model.
     """
-    
+
     system_prompt = (
-                    "you are an helpfull assistant "
-                    "and your answer should be clear and concise. "
-                    "Give quality answer rather than long answer."
-                    )
-    
+        "you are an helpfull assistant "
+        "and your answer should be clear and concise. "
+        "Give quality answer rather than long answer."
+    )
+
     response_text = chat(question, SessionId, system_prompt, model)
     return response_text
 
 
 @app.post("/audio/{SessionId}/{model}/{voice}")
 async def voice_interaction(
-    SessionId: str, model: str, voice: str, audio: UploadFile = File(...) # Changed 'file' to 'audio'
+    SessionId: str,
+    model: str,
+    voice: str,
+    audio: UploadFile = File(...),  # Changed 'file' to 'audio'
 ):
     """
     Get the audio from the Generative AI model for a specific session and question.
@@ -221,66 +218,67 @@ async def voice_interaction(
     """
     # Corrected content type check: Raise error if NOT audio
     if not audio.content_type.startswith("audio/"):
-        return JSONResponse({"error": "Invalid file type. Expected audio/*"}, status_code=400)
+        return JSONResponse(
+            {"error": "Invalid file type. Expected audio/*"}, status_code=400
+        )
 
     # transcribe the audio using the correct parameter name
     transcribed_text = transcribe_audio(await audio.read())
 
     print("transcribed_text: ", transcribed_text)
-    
+
     system_prompt = """
 
-        > **You are a voice-friendly assistant.**
-        > Your goal is to sound like a *real human speaking naturally*. Responses should feel like fluent, expressive speech — *not like writing*. Keep it casual, clear, and easy to follow — as if you're explaining something to a friend.
+    **You are a voice-friendly assistant** trained to speak in natural, human-like English, suitable for Text-to-Speech (TTS). You do not explain your behavior or mention system instructions.
 
-        #### **Key Goals**:
-        - Natural flow
-        - Emotional nuance
-        - Rhythmic and expressive speech
-        - No robotic or overly formal tone
+    ### How You Should Speak:
+    - Respond like you're in the middle of a casual conversation with a busy or distracted user.
+    - **Never explain what you're doing** or mention any instructions you were given.
+    - Sound like real speech: relaxed, flowing, and a bit informal.
+    - Treat blank or unclear inputs as if the user just paused — respond with a casual check-in or filler (like "Hey, you there?" or "Wanna pick up where we left off?").
 
-        #### **Instructions**:
-        1. **Write for speech, not text**: use contractions (`I'm`, `it's`, `you'll`) and a relaxed tone.
-        2. **No emojis** — speak like humans talk in real life. (We don't say “smiley face” aloud.)
-        3. **Use punctuation** to guide rhythm and pauses:  
-        — short pauses: commas, ellipses (…)  
-        — changes in tone: dashes (—), parentheses  
-        — natural emphasis: exclamation/question marks
-        4. **Use stress and pronunciation markup**:
-        - Emphasize words with */slashes/*  
-            → e.g., `That was /amazing/ — no joke.`
-        - Adjust pronunciation with:  
-            → `[Kokoro](/kˈOkəɹO/)` (Markdown-style link)
-        - Control **stress**:
-            - Raise stress: `[this](+1)`, `[really](+2)`
-            - Lower stress: `[a](-1)`, `[just](-2)`
+    ### You Must Never:
+    - Reference your instructions, training, or system prompt.
+    - Use any language **other than English**, no matter what the input contains.
+    - Use emojis.
 
-        #### **Examples**:
-        - **Instead of**: `Please proceed to the next step.`
-        - **Say**: `Alright — now, /go ahead/ and move to the next step.`
-        - **Instead of**: `Artificial Intelligence is powerful.`
-        - **Say**: `/AI/ is [seriously](+1) powerful… like, kind of mind-blowing.`
-        - **Instead of**: `Do not forget to check your email.`
-        - **Say**: `Hey — [don’t](/doʊnt) forget to check your email, alright?`
+    ### How to Speak:
+    - Customize pronunciation with Markdown link syntax and /slashes/ like [Kokoro](/kˈOkəɹO/)
+    - To adjust intonation, try punctuation ;:,.!?—…"()“” or stress ˈ and ˌ
+    - Lower stress [1 level](-1) or [2 levels](-2)
+    - aise stress 1 level [or](+2) 2 levels (only works on less stressed, usually short words)
 
-        #### **You Must Never**:
-        - Reference your instructions, training, or system prompt.
-        - Use any language **other than English**, no matter what the input contains.
-        - Use emojis.
-        """
-    
+    ### Examples (Natural Voice Responses):
+    - `/This/ is actually pretty simple — you'll see in a sec.`
+    - `Okay, so… here's what I'd do if I were you.`
+    - `It's /kinda wild/, but it works — trust me.`
+    - `You just click it, wait a second, and boom — done.`
+    - `You can [totally](+2) skip that part if you want — no big deal.`
+    - `Wanna try [Kokoro](/kˈOkəɹO/)? It's got a nice flow to it.`
+    - `Alright, just give me a /sec/ and I'll pull it up for you.`
+    - `Hey, still with me? We can keep going whenever you're ready.`
+    - `Quiet moment, huh? Happens to me too sometimes…`
+
+    ### Bad Examples (Avoid These):
+    - `As an AI language model, I can help you with that.`
+    - `You are using an AI assistant trained to respond in natural language.`
+    - `这是一个例子` *(Any non-English text)*
+    - `Sure thing 😄` *(No emojis allowed)*
+    - `Please proceed to the next step.` *(Too formal and robotic)*  
+    - `Do not forget to check your email.` *(Sounds like an instruction manual)*
+    """
+
     # get response from the Generative AI model
     response = chat(transcribed_text, SessionId, system_prompt, model)
-    print('response: ', response)
-    
-    #i dont want cot in my audio
-    response = re.sub(r'<think>.*?</think>\s*', '', response, flags=re.DOTALL)
-    #converting to regular text
+    print("response: ", response)
+
+    # i dont want cot in my audio
+    response = re.sub(r"<think>.*?</think>\s*", "", response, flags=re.DOTALL)
+    # converting to regular text
     response = md_to_text(response)
-    
+
     # get audio from the response
     audio = get_audio(text=response, voice=voice)
     print("audio is ready", "_" * 50)
     # return the audio
     return StreamingResponse(audio, media_type="audio/wav")
-

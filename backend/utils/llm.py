@@ -10,7 +10,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemini-2.5-flash-preview-04-17") -> str:
+def chat(
+    question: str,
+    SessionId: str,
+    system_prompt: str,
+    model: str = "gemini-2.5-flash-preview-04-17",
+) -> str:
     """
     This function takes a question and a session ID, and returns the response
     from the Generative AI model.
@@ -52,7 +57,9 @@ def chat(question: str, SessionId: str, system_prompt: str, model: str = "gemini
     config = {"configurable": {"session_id": SessionId}}
 
     # Invoke the chain with the question and the config
-    response = chain_with_history.invoke({"question": question, "system_prompt": system_prompt}, config=config)
+    response = chain_with_history.invoke(
+        {"question": question, "system_prompt": system_prompt}, config=config
+    )
 
     return response.content
 
@@ -81,12 +88,14 @@ def get_chat_history(
     return human_messages
 
 
-def generate_chat_name(SessionId: str, model: str = "gemini-2.5-flash-preview-04-17") -> str:
+def generate_chat_name(
+    SessionId: str, model: str = "gemini-2.5-flash-preview-04-17"
+) -> str:
     """
-    This function takes a session ID and returns a string that summarizes 
+    This function takes a session ID and returns a string that summarizes
     the chat history associated with it.
 
-    It uses the ChatGoogleGenerativeAI class to generate a summary of 
+    It uses the ChatGoogleGenerativeAI class to generate a summary of
     the chat history, and then returns the summary.
     """
 
@@ -122,7 +131,9 @@ def generate_chat_name(SessionId: str, model: str = "gemini-2.5-flash-preview-04
     chain = prompt | llm
 
     # Invoke the chain with the chat history
-    response = chain.invoke({"complete_message": "\n".join(get_chat_history(SessionId))})
+    response = chain.invoke(
+        {"complete_message": "\n".join(get_chat_history(SessionId))}
+    )
 
     return response.content
 

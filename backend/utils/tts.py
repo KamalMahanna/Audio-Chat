@@ -1,7 +1,7 @@
 from kokoro import KPipeline
 import soundfile as sf
 import io
-import torch 
+import torch
 
 voice_names = {
     "default": "af_bella",
@@ -17,6 +17,7 @@ voice_names = {
     "george": "bm_george",
     "lewis": "bm_lewis",
 }
+
 
 def get_audio(text: str, voice: str = "bella") -> bytes:
     """
@@ -39,10 +40,9 @@ def get_audio(text: str, voice: str = "bella") -> bytes:
 
     full_audio = torch.concatenate(audio_chunks)
     numpy_full_audio = full_audio.numpy()
-    
-    buf = io.BytesIO()
-    sf.write(buf, numpy_full_audio, samplerate=24000, format='wav')
-    buf.seek(0)
-    
-    return buf
 
+    buf = io.BytesIO()
+    sf.write(buf, numpy_full_audio, samplerate=24000, format="wav")
+    buf.seek(0)
+
+    return buf
