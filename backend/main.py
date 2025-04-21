@@ -73,9 +73,9 @@ def get_SessionId_n_names():
 
 
 @app.post(
-    "/get_chat_name/{SessionId}/{model}", response_model=ChatSummaryNameOutput
+    "/get_chat_name/{SessionId}", response_model=ChatSummaryNameOutput
 )
-def get_chat_name(SessionId: str, model: str):
+def get_chat_name(SessionId: str):
     """
     Get the chat name for a specific session.
 
@@ -86,7 +86,7 @@ def get_chat_name(SessionId: str, model: str):
         ChatNameSummaryOutput: The chat meta for the specified session.
     """
 
-    generated_chat_name = generate_chat_name(SessionId=SessionId, model=model)
+    generated_chat_name = generate_chat_name(SessionId=SessionId)
 
     # removing cot from the chat name
     generated_chat_name = re.sub(r'<think>.*?</think>\s*', '', generated_chat_name, flags=re.DOTALL)
