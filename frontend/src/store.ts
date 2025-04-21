@@ -8,7 +8,7 @@ export const useStore = create<ChatState>((set, get) => ({ // Added get to acces
   mode: 'chat',
   isRecording: false,
   selectedVoice: 'default',
-  modelName: 'gemma3:4b', // Default model name
+  modelName: 'gemini-2.5-flash-preview-04-17', // Default model name
   isHistoryLoading: false, // Initialize loading state
   setSessions: (sessions) => set({ sessions }),
   setCurrentSession: (sessionId) => set({ currentSession: sessionId }),

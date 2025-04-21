@@ -9,11 +9,8 @@ services:
     build: ./backend
     ports:
       - 8000:8000
-    environment:
-      - OLLAMA_URL=http://ollama:11434
     depends_on:
       - db
-      - ollama
   db:
     image: mongo
     restart: unless-stopped
@@ -22,16 +19,5 @@ services:
     volumes:
       - mongo_volume:/data/db
 
-  ollama:
-    image: ollama/ollama
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-    ports:
-      - 11435:11434
-    restart: unless-stopped
-    volumes:
-      - ollama_volume:/root/.ollama
 volumes:
   mongo_volume:
-  ollama_volume:
