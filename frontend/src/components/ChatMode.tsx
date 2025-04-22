@@ -93,7 +93,7 @@ export const ChatMode: React.FC = () => {
       if (updatedMessages.length === 6 && currentSessionData?.chat_name === 'New Chat') {
         console.log(`Fetching chat name for session: ${targetSessionId}`);
         try {
-          const nameResponse = await fetch(`http://localhost:8000/get_chat_name/${targetSessionId}/${modelName}`, { // Added modelName
+          const nameResponse = await fetch(`http://localhost:8000/get_chat_name/${targetSessionId}`, { // Added modelName
             method: 'POST', // Assuming POST based on task description
           });
           if (!nameResponse.ok) {
