@@ -1,24 +1,24 @@
 # Local Voice & Text Chatbot
 
-A fully local, privacy-respecting chat platform enabling both text and audio conversations with advanced AI models. All data and inference run 100% on your machine—no cloud required. The system supports persistent chat history, voice input/output, and seamless one-shot deployment via Docker Compose.
+A privacy-first chat platform for text and audio conversations with advanced AI models. By default, all data and inference run locally—no cloud required—ensuring your conversations remain private. For those who prefer cloud LLMs, the system now supports Gemini and Groq APIs, allowing you to skip local model downloads. Persistent chat history, voice input/output, and seamless deployment are all included.
 
 ---
 
 ## Features
 
-- **Chat with Local AI Models:** Text and voice chat powered by Ollama and LangChain.
+- **Flexible LLM Backend:** Text and voice chat powered by Ollama (local), Gemini, or Groq (cloud) via LangChain integration.
 - **Audio Conversations:** Speak to your AI assistant and receive spoken responses using Whisper (speech-to-text) and Kokoro TTS (text-to-speech).
 - **Persistent Storage:** All chat sessions and histories are stored locally in MongoDB.
 - **LLM Framework:** Utilizes LangChain for building LLM applications.
 - **Modern API:** FastAPI backend for robust, fast, and easy-to-extend APIs.
 - **One-Command Setup:** Docker Compose orchestrates backend, frontend, database, and model services for a frictionless install.
-- **No Cloud Dependency:** All components run locally for maximum privacy and control.
+- **Cloud or Local:** Run everything locally for maximum privacy, or opt for Gemini or Groq LLMs via API keys—no local model downloads required.
 
 ---
 
 ## Tech Stack
 
-- **Backend:** FastAPI, LangChain, MongoDB, Ollama, Whisper, Kokoro TTS
+- **Backend:** FastAPI, LangChain, MongoDB, Ollama (local LLM), Gemini & Groq (cloud LLM), Whisper, Kokoro TTS
 - **Frontend:** (See `frontend/` folder for details)
 - **Containerization:** Docker & Docker Compose
 
@@ -35,14 +35,12 @@ Below is the folder structure (excluding frontend file details):
 │   ├── main.py               # FastAPI entry point; defines REST endpoints for chat, audio, and session management
 │   ├── requirements.txt      # Python dependencies for backend services
 │   └── utils/                # Utility modules for modular functionality
-│       ├── DataValidators.py # Data models and validation schemas
-│       ├── llm.py            # LangChain and Ollama integration (LLM logic)
+│       ├── DataValidators.py # Pydantic Data validation schemas
+│       ├── llm.py            # LangChain integration for Ollama, Gemini, and Groq (LLM logic)
 │       ├── stt.py            # Speech-to-text (Whisper) utilities
-│       ├── tts.py            # Text-to-speech (Kokoro TTS) utilities
-│       └── __init__.py       # Package marker
+│       └── tts.py            # Text-to-speech (Kokoro TTS) utilities
 ├── docker-compose.yml        # Orchestrates all services (frontend, backend, db, ollama) for unified deployment
-├── frontend/                 # Contains frontend files (UI, assets, configs, etc.)
-└── test.ipynb                # (Optional) Jupyter notebook for experiments or testing
+└── frontend/                 # Contains frontend files (UI, assets, configs, etc.)
 ```
 
 ---
@@ -53,50 +51,73 @@ Below is the folder structure (excluding frontend file details):
 
 - Docker & Docker Compose installed on your system
 
+### LLM Model Options
+
+By default, the platform uses local Ollama models for all AI inference. If you prefer not to download or run models locally, you can use Gemini or Groq as your LLM backend. To do so:
+
+1. **Create a `.env` file in the `backend/` directory.**
+   - For Gemini go to [Google AI Studio](https://aistudio.google.com/apikey) and create your api key, copy it, and paste to the `.env` file:
+     ```env
+     GOOGLE_API_KEY=your_gemini_api_key_here
+     ```
+   - Or for Groq, go to [Groq](https://console.groq.com/keys) and create your api key, copy it, and paste to the `.env` file:
+     ```env
+     GROQ_API_KEY=your_groq_api_key_here
+     ```
+
 ### One-Shot Deployment
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/KamalMahanna/Audio-Chat.git
-   cd Audio-Chat
-   ```
+1. **Clone the repository (choose your LLM backend branch):**
+   - For Gemini LLM:
+     ```bash
+     git clone -b gemini https://github.com/KamalMahanna/Audio-Chat.git
+     cd Audio-Chat
+     ```
+   - For Groq LLM:
+     ```bash
+     git clone -b groq https://github.com/KamalMahanna/Audio-Chat.git
+     cd Audio-Chat
+     ```
+   - For default (Ollama/local):
+     ```bash
+     git clone https://github.com/KamalMahanna/Audio-Chat.git
+     cd Audio-Chat
+     ```
 
 2. **Start all services:**
-   - For first time build the image with the below command. It will take longer to build (If you curious, for my setup with a 50MB/s internet connection and i3 11 gen processor, it took 10 minutes).
-   ```bash
-   docker compose up -d --build
-   ```
-   - if you have already built the image, you can run
-   ```bash
-   docker compose up -d
-   ```
-   - To stop the services
-   ```bash
-   docker compose down
-   ```
+   - For first-time setup, build the images (initial build may take several minutes, it will take 6-7 GB of space also 4-5 GB of Bandwidth):
+
+   - to run it:
+     ```bash
+     docker compose up -d
+     ```
+   - To stop the services:
+     ```bash
+     docker compose down
+     ```
 
    This will launch:
    - FastAPI backend (port 8000)
    - Frontend UI (port 5173)
    - MongoDB database (port 27017)
-   - Ollama model server (port 11435)
+   - Ollama model server (port 11435) [only if using Ollama/local]
 
 3. **Access the application:**
    - Open your browser and go to [http://localhost:5173](http://localhost:5173)
-
+   - Please wait 10-15 seconds to fully start the database and then refresh.
 ---
 
 ## How It Works
 
-- **Text Chat:** Send and receive messages through the web UI. All interactions are processed locally with Ollama models.
-- **Voice Chat:** Use your microphone to converse with the assistant. Speech is transcribed with Whisper and responses are spoken using Kokoro TTS.
+- **Text Chat:** Converse via the web UI. Interactions are processed by your chosen LLM backend (Ollama, Gemini, or Groq).
+- **Voice Chat:** Use your microphone to converse with the assistant. Speech is transcribed with Whisper and responses are spoken using Kokoro TTS. LLM responses are generated by your configured backend.
 - **Session Storage:** Every chat session and its history are saved in MongoDB for persistent recall.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please open issues or submit pull requests for improvements and bug fixes.
+Contributions and suggestions are welcome! Please open issues or submit pull requests for improvements and bug fixes.
 
 ---
 
