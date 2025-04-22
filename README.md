@@ -19,7 +19,7 @@ A privacy-first chat platform for text and audio conversations with advanced AI 
 ## Tech Stack
 
 - **Backend:** FastAPI, LangChain, MongoDB, Ollama (local LLM), Gemini & Groq (cloud LLM), Whisper, Kokoro TTS
-- **Frontend:** (See `frontend/` folder for details)
+- **Frontend:** Frontend is vive coded
 - **Containerization:** Docker & Docker Compose
 
 ---
