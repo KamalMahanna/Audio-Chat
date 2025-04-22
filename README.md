@@ -1,4 +1,4 @@
-# Local Voice & Text Chatbot
+# Audio Chat
 
 A privacy-first chat platform for text and audio conversations with advanced AI models. By default, all data and inference run locally—no cloud required—ensuring your conversations remain private. For those who prefer cloud LLMs, the system now supports Gemini and Groq APIs, allowing you to skip local model downloads. Persistent chat history, voice input/output, and seamless deployment are all included.
 
