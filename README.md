@@ -53,40 +53,25 @@ Below is the folder structure (excluding frontend file details):
 
 - Docker & Docker Compose installed on your system
 
+### Environment Variables
+
+To configure your Google API Key:
+
+1.  **Rename the example environment file:**
+
+    ```bash
+    mv backend/.env.bak backend/.env
+    ```
+
+2.  **Open `backend/.env` and add your Google API Key:**
+
+    ```
+    GOOGLE_API_KEY=<your_google_api_key>
+    ```
+
+    You can obtain your `GOOGLE_API_KEY` from [Google AI Studio](https://aistudio.google.com/app/apikey).
+
 ### One-Shot Deployment
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/KamalMahanna/Audio-Chat.git
-   cd Audio-Chat
-   ```
-
-2. **Start all services:**
-   - For first time build the image with the below command. It will take longer to build (If you curious, for my setup with a 50MB/s internet connection and i3 11 gen processor, it took 10 minutes).
-   ```bash
-   docker compose up -d --build
-   ```
-   - if you have already built the image, you can run
-   ```bash
-   docker compose up -d
-   ```
-   - To stop the services
-   ```bash
-   docker compose down
-   ```
-
-   This will launch:
-   - FastAPI backend (port 8000)
-   - Frontend UI (port 5173)
-   - MongoDB database (port 27017)
-   - Ollama model server (port 11435)
-
-3. **Access the application:**
-   - Open your browser and go to [http://localhost:5173](http://localhost:5173)
-
----
-
-## How It Works
 
 - **Text Chat:** Send and receive messages through the web UI. All interactions are processed locally with Ollama models.
 - **Voice Chat:** Use your microphone to converse with the assistant. Speech is transcribed with Whisper and responses are spoken using Kokoro TTS.
