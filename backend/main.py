@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 
+import os
 import re
 import markdown
 from bs4 import BeautifulSoup
@@ -37,7 +38,8 @@ def md_to_text(md):
 warnings.filterwarnings("ignore")
 
 # connect to the database
-client = MongoClient("mongodb://db:27017/")
+mongo_uri = os.getenv("MONGO_URI", "mongodb://db:27017/")
+client = MongoClient(mongo_uri)
 chat_history_db = client["LLM_chats_db"]
 chat_histories_collection = chat_history_db["chat_histories"]
 chat_meta_collection = chat_history_db["chat_meta"]

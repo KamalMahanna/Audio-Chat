@@ -11,6 +11,7 @@ services:
       - 8000:8000
     environment:
       - OLLAMA_URL=http://ollama:11434
+      - MONGO_URI=mongodb://db:27017/
     depends_on:
       - db
       - ollama
