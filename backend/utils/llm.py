@@ -14,7 +14,7 @@ def chat(
     question: str,
     SessionId: str,
     system_prompt: str,
-    model: str = "gemini-2.5-flash-preview-04-17",
+    model: str = "gemini-2.5-flash",
 ) -> str:
     """
     This function takes a question and a session ID, and returns the response
@@ -89,7 +89,7 @@ def get_chat_history(
 
 
 def generate_chat_name(
-    SessionId: str, model: str = "gemini-2.5-flash-preview-04-17"
+    SessionId: str, model: str = "gemini-2.5-flash"
 ) -> str:
     """
     This function takes a session ID and returns a string that summarizes
