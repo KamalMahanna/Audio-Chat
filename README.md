@@ -35,6 +35,7 @@ Below is the folder structure (excluding frontend file details):
 │   ├── main.py               # FastAPI entry point; defines REST endpoints for chat, audio, and session management
 │   ├── requirements.txt      # Python dependencies for backend services
 │   └── utils/                # Utility modules for modular functionality
+│       ├── AudioPreprocessor.py # Audio preprocessing utility class
 │       ├── DataValidators.py # Pydantic Data validation schemas
 │       ├── llm.py            # LangChain integration for Ollama, Gemini, and Groq (LLM logic)
 │       ├── stt.py            # Speech-to-text (Whisper) utilities
