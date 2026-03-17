@@ -1,6 +1,8 @@
 openai-whisper
 kokoro>=0.9.4
 numpy
+librosa 
+noisereduce 
 soundfile
 langchain-ollama
 langchain-core

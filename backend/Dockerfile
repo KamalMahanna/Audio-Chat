@@ -4,8 +4,8 @@ WORKDIR /app
 COPY . .
 
 RUN apt update && apt install -y ffmpeg espeak-ng
-RUN pip install uv
-RUN uv pip install --system -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+# RUN uv pip install --system -r requirements.txt
 
 EXPOSE 8000
 

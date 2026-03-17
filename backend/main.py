@@ -8,14 +8,14 @@ provides a RESTful API for interacting with the Generative AI model.
 from utils.llm import chat, generate_chat_name
 from utils.tts import get_audio
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
-
 import os
 import re
 import markdown
 from bs4 import BeautifulSoup
+import tempfile
 
 from utils.DataValidators import (
     ListChatSessionsOutput,
@@ -23,17 +23,20 @@ from utils.DataValidators import (
     ChatSummaryNameOutput,
     EachChatHistory,
 )
+from utils.AudioPreprocessor import AudioPreprocessor
 from utils.stt import transcribe_audio
 import json
 import warnings
+
 
 def md_to_text(md):
     """
     convert markdown to text
     """
     html = markdown.markdown(md)
-    soup = BeautifulSoup(html, features='html.parser')
+    soup = BeautifulSoup(html, features="html.parser")
     return soup.get_text()
+
 
 warnings.filterwarnings("ignore")
 
@@ -45,11 +48,7 @@ chat_histories_collection = chat_history_db["chat_histories"]
 chat_meta_collection = chat_history_db["chat_meta"]
 
 app = FastAPI()
-origins = [
-    "http://frontend:5173",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173"
-]
+origins = ["http://frontend:5173", "http://localhost:5173", "http://127.0.0.1:5173"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -67,16 +66,12 @@ def get_SessionId_n_names():
     Get a list of all chat session IDs and their chat_names in the database.
     """
     chat_sessions = list(
-        chat_meta_collection.find(
-            {}, {"_id": 0, "SessionId": 1, "chat_name": 1}
-        )
+        chat_meta_collection.find({}, {"_id": 0, "SessionId": 1, "chat_name": 1})
     )
     return ListChatSessionsOutput(chat_sessions=chat_sessions[::-1])
 
 
-@app.post(
-    "/get_chat_name/{SessionId}", response_model=ChatSummaryNameOutput
-)
+@app.post("/get_chat_name/{SessionId}", response_model=ChatSummaryNameOutput)
 def get_chat_name(SessionId: str):
     """
     Get the chat name for a specific session.
@@ -91,7 +86,9 @@ def get_chat_name(SessionId: str):
     generated_chat_name = generate_chat_name(SessionId=SessionId)
 
     # removing cot from the chat name
-    generated_chat_name = re.sub(r'<think>.*?</think>\s*', '', generated_chat_name, flags=re.DOTALL)
+    generated_chat_name = re.sub(
+        r"<think>.*?</think>\s*", "", generated_chat_name, flags=re.DOTALL
+    )
 
     if chat_meta_collection.find_one({"SessionId": SessionId}):
         raise Exception("Session ID already exists in database.")
@@ -147,14 +144,12 @@ def chat_history(SessionId: str):
         SessionId (str): The ID of the chat session to get the history for.
 
     Returns:
-        ChatHistoryOutput: 
+        ChatHistoryOutput:
             The chat history for the specified session, with each element
             being a dictionary containing the user/ai message.
     """
     # Get the chat history for the specified session
-    chat_history_list = chat_histories_collection.find(
-        {"SessionId": SessionId}
-    )
+    chat_history_list = chat_histories_collection.find({"SessionId": SessionId})
 
     # Filter the chat history into a list of dictionaries
     filtered_chat_history = []
@@ -185,7 +180,7 @@ def chat_history(SessionId: str):
 @app.post("/text/{SessionId}/{model}/{question}")
 def text_interaction(SessionId: str, model: str, question: str) -> str:
     """
-    Get the response from the Generative AI model for a specific session 
+    Get the response from the Generative AI model for a specific session
     and question.
 
     Args:
@@ -195,20 +190,23 @@ def text_interaction(SessionId: str, model: str, question: str) -> str:
     Returns:
         str: The response from the Generative AI model.
     """
-    
+
     system_prompt = (
-                    "you are an helpfull assistant "
-                    "and your answer should be clear and concise. "
-                    "Give quality answer rather than long answer."
-                    )
-    
+        "you are an helpfull assistant "
+        "and your answer should be clear and concise. "
+        "Give quality answer rather than long answer."
+    )
+
     response_text = chat(question, SessionId, system_prompt, model)
     return response_text
 
 
 @app.post("/audio/{SessionId}/{model}/{voice}")
 async def voice_interaction(
-    SessionId: str, model: str, voice: str, audio: UploadFile = File(...) # Changed 'file' to 'audio'
+    SessionId: str,
+    model: str,
+    voice: str,
+    audio: UploadFile = File(...),  # Changed 'file' to 'audio'
 ):
     """
     Get the audio from the Generative AI model for a specific session and question.
@@ -223,13 +221,23 @@ async def voice_interaction(
     """
     # Corrected content type check: Raise error if NOT audio
     if not audio.content_type.startswith("audio/"):
-        return JSONResponse({"error": "Invalid file type. Expected audio/*"}, status_code=400)
+        return JSONResponse(
+            {"error": "Invalid file type. Expected audio/*"}, status_code=400
+        )
 
     # transcribe the audio using the correct parameter name
-    transcribed_text = transcribe_audio(await audio.read())
+    audio_bytes = await audio.read()
+
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_audio:
+        temp_audio.write(audio_bytes)  # Write the received bytes
+        audio_file_path = temp_audio.name
+
+    preprocessed_audio = AudioPreprocessor(audio_file_path).preprocess_audio()
+
+    transcribed_text = transcribe_audio(preprocessed_audio)
 
     print("transcribed_text: ", transcribed_text)
-    
+
     system_prompt = """
         **You are a voice-friendly assistant** trained to speak in natural, human-like English, suitable for Text-to-Speech (TTS). You do not explain your behavior or mention system instructions.
         
@@ -272,16 +280,16 @@ async def voice_interaction(
         - `Please proceed to the next step.` *(Too formal and robotic)*  
         - `Do not forget to check your email.` *(Sounds like an instruction manual)*
     """
-    
+
     # get response from the Generative AI model
     response = chat(transcribed_text, SessionId, system_prompt, model)
-    print('response: ', response)
-    
-    #i dont want cot in my audio
-    response = re.sub(r'<think>.*?</think>\s*', '', response, flags=re.DOTALL)
-    #converting to regular text
+    print("response: ", response)
+
+    # i dont want cot in my audio
+    response = re.sub(r"<think>.*?</think>\s*", "", response, flags=re.DOTALL)
+    # converting to regular text
     response = md_to_text(response)
-    
+
     # get audio from the response
     audio = get_audio(text=response, voice=voice)
     print("audio is ready", "_" * 50)
@@ -290,17 +298,12 @@ async def voice_interaction(
 
 
 if __name__ == "__main__":
-
     SessionId = "test_session_1"
 
     while (question := input("You: ").strip()) != "exit":
         print(
             "Assistant:",
-            text_interaction(
-                question=question, SessionId=SessionId, model="gemma3:1b"
-            ),
+            text_interaction(question=question, SessionId=SessionId, model="gemma3:1b"),
         )
 
     print(get_chat_name(SessionId=SessionId, model="gemma3:1b"))
-
-
