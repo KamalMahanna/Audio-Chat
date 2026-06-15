@@ -24,6 +24,7 @@ from utils.DataValidators import (
     ChatHistoryOutput,
     ChatSummaryNameOutput,
     EachChatHistory,
+    TextRequest,
 )
 from utils.stt import transcribe_audio
 import json
@@ -76,7 +77,7 @@ def get_SessionId_n_names():
 
 
 @app.post(
-    "/get_chat_name/{SessionId}/{model}", response_model=ChatSummaryNameOutput
+    "/get_chat_name/{SessionId}", response_model=ChatSummaryNameOutput
 )
 def get_chat_name(SessionId: str, model: str):
     """
@@ -183,8 +184,8 @@ def chat_history(SessionId: str):
     ]
 
 
-@app.post("/text/{SessionId}/{model}/{question}")
-def text_interaction(SessionId: str, model: str, question: str) -> str:
+@app.post("/text/{SessionId}")
+def text_interaction(SessionId: str, model: str, request: TextRequest) -> str:
     """
     Get the response from the Generative AI model for a specific session 
     and question.
@@ -203,11 +204,11 @@ def text_interaction(SessionId: str, model: str, question: str) -> str:
                     "Give quality answer rather than long answer."
                     )
     
-    response_text = chat(question, SessionId, system_prompt, model)
+    response_text = chat(request.text, SessionId, system_prompt, model)
     return response_text
 
 
-@app.post("/audio/{SessionId}/{model}/{voice}")
+@app.post("/audio/{SessionId}")
 async def voice_interaction(
     SessionId: str, model: str, voice: str, audio: UploadFile = File(...) # Changed 'file' to 'audio'
 ):
@@ -316,7 +317,7 @@ if __name__ == "__main__":
         print(
             "Assistant:",
             text_interaction(
-                question=question, SessionId=SessionId, model="gemma3:1b"
+                SessionId=SessionId, model="gemma3:1b", request=TextRequest(text=question)
             ),
         )
 

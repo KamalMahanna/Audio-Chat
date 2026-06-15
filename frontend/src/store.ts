@@ -8,7 +8,7 @@ export const useStore = create<ChatState>((set, get) => ({ // Added get to acces
   mode: 'chat',
   isRecording: false,
   selectedVoice: 'default',
-  modelName: 'qwen-qwq-32b', // Default model name
+  modelName: 'openai/gpt-oss-120b', // Default model name
   isHistoryLoading: false, // Initialize loading state
   setSessions: (sessions) => set({ sessions }),
   setCurrentSession: (sessionId) => set({ currentSession: sessionId }),
@@ -42,8 +42,8 @@ export const useStore = create<ChatState>((set, get) => ({ // Added get to acces
       }
     } catch (error) {
       console.error("Failed to fetch chat history:", error);
-       // Optionally set an empty array or handle the error state
-       set((state) => ({
+      // Optionally set an empty array or handle the error state
+      set((state) => ({
         messages: { ...state.messages, [sessionId]: [] }
       }));
     } finally {

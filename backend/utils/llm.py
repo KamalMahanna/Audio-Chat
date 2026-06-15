@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def chat(question: str, SessionId: str, system_prompt: str, model: str = "qwen-qwq-32b") -> str:
+def chat(question: str, SessionId: str, system_prompt: str, model: str = "openai/gpt-oss-120b") -> str:
     """
     This function takes a question and a session ID, and returns the response
     from the Generative AI model.
@@ -81,7 +81,7 @@ def get_chat_history(
     return human_messages
 
 
-def generate_chat_name(SessionId: str, model: str = "qwen-qwq-32b") -> str:
+def generate_chat_name(SessionId: str, model: str = "openai/gpt-oss-120b") -> str:
     """
     This function takes a session ID and returns a string that summarizes 
     the chat history associated with it.

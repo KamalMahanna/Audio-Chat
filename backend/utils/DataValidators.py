@@ -9,6 +9,11 @@ class ChatSummaryNameOutput(BaseModel):
     )
 
 
+class TextRequest(BaseModel):
+    text: str
+
+
+
 class ListChatSessionsOutput(BaseModel):
     chat_sessions: List[Dict[str, str]] = Field(
         ...,

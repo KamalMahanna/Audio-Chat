@@ -71,7 +71,7 @@ export const ChatMode: React.FC = () => {
     try {
       console.log(`Sending message to session: ${targetSessionId} using model: ${modelName}`);
       // Construct the correct URL format
-      const response = await fetch(`http://localhost:8000/text/${targetSessionId}/${modelName}/${encodeURIComponent(textToSend)}`, {
+      const response = await fetch(`http://localhost:8000/text/${targetSessionId}?model=${encodeURIComponent(modelName)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export const ChatMode: React.FC = () => {
       if (updatedMessages.length === 6 && currentSessionData?.chat_name === 'New Chat') {
         console.log(`Fetching chat name for session: ${targetSessionId}`);
         try {
-          const nameResponse = await fetch(`http://localhost:8000/get_chat_name/${targetSessionId}/${modelName}`, { // Added modelName
+          const nameResponse = await fetch(`http://localhost:8000/get_chat_name/${targetSessionId}?model=${encodeURIComponent(modelName)}`, { // Added modelName
             method: 'POST', // Assuming POST based on task description
           });
           if (!nameResponse.ok) {
